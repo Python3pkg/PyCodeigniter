@@ -30,6 +30,7 @@ import random
 
 pidfile="/var/zbxcli.pid"
 server_url="http://172.17.140.116:8005"
+server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 
 # etcd_prefix='/keeper'
@@ -608,6 +609,7 @@ server_url=http://127.0.0.1:8005
 
         #path=tempfile.gettempdir()+os.sep+'zbxcli';
         filename=''
+        dir='./'
         argv= self.util.parse_argv(args)
         if 'f' in argv.keys():
             filename=argv['f']
@@ -617,12 +619,14 @@ server_url=http://127.0.0.1:8005
         if not os.path.exists(path):
             self.util.execute('mkdir -p %s'%path)
 
+        if 'd' in argv.keys():
+            dir=argv['d']
         fn=path+os.path.sep+filename
         src=''
         is_python=False
         result=-1
         if not os.path.exists(fn) or os.stat(fn).st_mtime<(time.time()-10*60):
-            src=self.util.url_fetch(self.entry%'shell',{ 'file':filename, 'param': json.dumps(args[1:])},timeout=60*60)
+            src=self.util.url_fetch(self.entry%'shell',{ 'file':filename, 'param': json.dumps(args[1:]),'dir':dir},timeout=60*60)
         if src!='':
             open(fn,'w').write(src)
         else:
