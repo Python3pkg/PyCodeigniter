@@ -341,7 +341,7 @@ class Cli:
 
 
     def getetcd(self,param=''):
-        return {'server':['172.16.16.113:4001'],'prefix':'/keeper'}
+        return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
 
     def feedback_result(self,param=''):
         print(param)
@@ -557,6 +557,8 @@ class Cli:
         cmd=''
         k=''
         key='Mz'
+        user='root'
+        password='root'
         if 'i' in params:
             ip=params['i']
         else:
@@ -571,24 +573,29 @@ class Cli:
             return '-k(key) require'
         if not key==k:
             return 'key error'
-        return self._remote_exec(ip,cmd)
+        if  'u' in params:
+            user=params['u']
+        if  'p' in params:
+            password=params['p']
+        return self._remote_exec(ip,cmd,user,password)
 
-    def _remote_exec(self,ip,cmd):
+    def _remote_exec(self,ip,cmd,user='root',password='root'):
        try:
            import paramiko
            ssh=paramiko.SSHClient()
            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-           pkey= paramiko.RSAKey.from_private_key_file ('keypath/filename','keypassword')
-           try:
-               ssh.connect(ip,22,'ops','',pkey)
-           except Exception as err:
-               self.app.logger.error("PKERROR:"+str(err))
-               try:
-                   ssh.connect(ip,22,'root','root')
-               except Exception as usererr:
-                   self.app.logger.error("USERERROR:"+str(err))
-                   ssh.connect(ip,16120,'root','root')
+           #pkey= paramiko.RSAKey.from_private_key_file ('keypath/filename','keypassword')
+           #try:
+           #    ssh.connect(ip,22,'ops','',pkey)
+           #except Exception as err:
+           #    self.app.logger.error("PKERROR:"+str(err))
+           #    try:
+           #        ssh.connect(ip,22,'root','root')
+           #    except Exception as usererr:
+           #        self.app.logger.error("USERERROR:"+str(err))
+           #        ssh.connect(ip,16120,'root','root')
 
+           ssh.connect(ip,22,user,password)
            ssh.exec_command('sudo -i')
            ret=[]
            reterr=[]
