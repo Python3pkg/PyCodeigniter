@@ -168,7 +168,9 @@ class VM(object):
         #self.shell('qemu-img create -f qcow2 %s/%s.qcow2 %sk'%(self.dataimage_path, self.uuid,self.vmargs['disk']))  
         self.shell('mkdir -p /tmp/%s'% (self.uuid))
         print("gen disk file : %s" % (self.dataimage_path+os.path.sep+self.uuid+'.qcow2'))
-        self.shell("virt-make-fs -F qcow2 -t ext4 -s %sk /tmp/%s/  %s "%(str(self.vmargs['disk']),self.uuid,self.dataimage_path+os.path.sep+self.uuid+'.qcow2'))  
+        cmd="virt-make-fs -F qcow2 -t ext4 -s %sK /tmp/%s/  %s "%(str(self.vmargs['disk']),self.uuid,self.dataimage_path+os.path.sep+self.uuid+'.qcow2')
+        print(cmd)
+        print(self.shell(cmd))
     def gen_vmargs(self):
         vmargs={'mem':'8G','disk':'50G','cpu':'8','ip':'','bridge':'br0','uuid':self.uuid,'mac':self.mac,'system_image':self.image_path+os.path.sep+self.uuid+'.qcow2','disk_path':self.dataimage_path+os.path.sep+self.uuid+'.qcow2'}
         unit={'G':1024*1024,'M':1024,'g':1024*1024,'m':1024}
