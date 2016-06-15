@@ -61,7 +61,6 @@ or other application using the libvirt API.
       <source file='{disk_path}'/>
       <target dev='vdb' bus='virtio'/>
     </disk>
-    <controller type='pci' index='0' model='pci-root'/>
     <interface type='bridge'>
       <mac address='{mac}'/>
       <source bridge='{bridge}'/>
@@ -73,19 +72,9 @@ or other application using the libvirt API.
     <console type='pty'>
       <target type='serial' port='0'/>
     </console>
-    <input type='tablet' bus='usb'/>
-    <input type='mouse' bus='ps2'/>
-    <input type='keyboard' bus='ps2'/>
     <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'>
       <listen type='address' address='0.0.0.0'/>
     </graphics>
-    <video>
-      <model type='cirrus' vram='16384' heads='1'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
-    </video>
-    <memballoon model='virtio'>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
-    </memballoon>
   </devices>
 </domain>
 
