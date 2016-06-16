@@ -120,12 +120,10 @@ class VM(object):
         print(self.shell('virsh start %s'%(self.uuid)))
 
     def check(self):
-        if os.system('which virsh > /dev/null 2>&1')!=0:
-            print('virsh not install,  yum install -y libvirt !')
-	    return False
-        if os.system('which virt-make-fs > /dev/null 2>&1')!=0:
-            print('virt-make-fs not install,  yum install -y libguestfs!')
-	    return False
+        for i in ['virsh','virt-make-fs','wget']:
+            if os.system('which %s > /dev/null 2>&1'%(i))!=0:
+                print('%s not install' %(i))
+	        return False
         return True
 
     def shell(self,cmd):
@@ -141,9 +139,13 @@ class VM(object):
         for image in images:
            if image['name']==self.vmargs['image']:
                if image['url'].startswith('/'):
-                   os.system("cp '%s' '%s'"%(image['url'],self.image_path+os.path.sep+self.uuid+'.qcow2'))
+                   cmd="cp '%s' '%s'"%(image['url'],self.image_path+os.path.sep+self.uuid+'.qcow2')
+                   print(cmd)
+                   os.system(cmd)
                elif image['url'].startswith('http'):
-                   os.system("wget '%s' -O '%s'"%(image['url'],self.image_path+os.path.sep+self.uuid+'.qcow2'))
+                   cmd="wget '%s' -O '%s'"%(image['url'],self.image_path+os.path.sep+self.uuid+'.qcow2')
+                   print(cmd)
+                   os.system(cmd)
                flag=True
                break
     def get_mac(self):
