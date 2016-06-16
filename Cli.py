@@ -351,6 +351,25 @@ class Cli:
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
+    def heartbeat(self,param):
+        params=self._params(param)
+        objs=self.getobjs(json.dumps({'t':'uuid=%s'% params['uuid'],'o':'heartbeat'}))
+
+        salt= ci.uuid()
+        utime=str(time.time())
+        if objs==None or len(objs)==0:
+            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt),'o':'heartbeat','i':params['i']}
+        elif len(objs)==1:
+            if 'salt' in objs[0].keys():
+                salt=objs[0]['salt']
+            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s'%(params['uuid'],params['ips'],salt),'o':'heartbeat','i':params['i']}
+            self.addobjs(json.dumps(param))
+        else:
+            ci.logger.error(params['uuid'])
+        return salt
+        # print self.addobjs(json.dumps(param))
+
+
     def cmd(self,param=''):
         try:
             params=self._params(param)
@@ -358,6 +377,8 @@ class Cli:
             cmd=''
             ip=''
             timeout=3
+
+
 
             if  'c' in params:
                 cmd=params['c']
@@ -370,10 +391,18 @@ class Cli:
             if  't' in params:
                 timeout= float( params['t'])
             import urllib2,urllib
-            data={'value':cmd.encode('utf-8')}
+            objs=self.getobjs(json.dumps({'t':'(ips in %s)'% ip,'o':'heartbeat'}))
+            salt=''
+            if objs==None or len(objs)>1:
+                return '(error) invalid ip'
+            elif len(objs)==1:
+                puuid=objs[0]['uuid']
+                salt=objs[0]['salt']
+
+            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt))}) }
             data=urllib.urlencode(data)
             req = urllib2.Request(
-                    url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],ip),
+                    url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
                     data=data
             )
             req.get_method = lambda: 'POST'
@@ -385,7 +414,7 @@ class Cli:
             index=str(ret['node']['createdIndex'])
             self.cmdkeys[index]=''
             start=time.time()
-            if ret['node']['value']==cmd:
+            if json.loads(ret['node']['value'])['cmd']==cmd:
                 while True:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
                         break
@@ -394,7 +423,7 @@ class Cli:
                 if self.cmdkeys[index]!='':
                     ret=self.cmdkeys[index]
                     del self.cmdkeys[index]
-                    return ret
+                    return ret.encode('utf-8')
                 return '(success) submit command success'
             else:
                 return '(unsafe) submit command success '

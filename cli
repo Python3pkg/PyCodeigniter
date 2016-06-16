@@ -18,6 +18,7 @@ import time
 import datetime
 import re
 import logging
+import hashlib
 import sys
 import json
 import tempfile
@@ -26,11 +27,12 @@ import getopt
 from logging.handlers import RotatingFileHandler
 import json
 import random
+import commands
 
 
 pidfile="/var/zbxcli.pid"
 server_url="http://172.17.140.116:8005"
-server_url="http://172.16.119.3:8006"
+#server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 
 # etcd_prefix='/keeper'
@@ -63,6 +65,7 @@ class Daemon(object):
                 self.stdout = stdout
                 self.stderr = stderr
                 self.pidfile = pidfile
+                self.salt=''
 
         def daemonize(self):
                 """
@@ -178,6 +181,7 @@ class ZbxCommand(object):
         self.uuid=str(datetime.datetime.now()).replace(' ','').replace(':','').replace('-','').replace('.','')
         self.result=open(tempfile.gettempdir()+ os.path.sep +self.uuid,'a+')
 
+
     def run(self, timeout=30):
         def target():
             logger.info(self.cmd)
@@ -248,7 +252,18 @@ class ZbxCommon(object):
             print(e)
             print('http error')
 
+    def url_fetch_witherr(self,url,data=None,timeout=30,httpCmd=''):
+        return self._url_fetch(url,data,timeout,httpCmd)
+
     def url_fetch(self,url,data=None,timeout=30,httpCmd='',debug=False):
+        try:
+            return self._url_fetch(url,data,timeout,httpCmd,debug)
+        except Exception as er:
+            print(er)
+            return ''
+
+
+    def _url_fetch(self,url,data=None,timeout=30,httpCmd='',debug=False):
         html='';
         # print(url)
         home= os.path.expanduser('~')
@@ -280,14 +295,7 @@ class ZbxCommon(object):
                 html=unicode(html,charset[0])
             #print(html)
         except Exception as e:
-            if debug:
-                print("deug", url,data,httpCmd)
-            if hasattr(e,'msg'):
-                print(e.msg)
-            else:
-                print(e)
-
-            logger.error(e)
+            raise Exception(e)
         return html
     def getopt(self,inputs):
         def ptype(input):
@@ -372,7 +380,10 @@ class ZbxCommon(object):
         else:
             return argv
 
-
+    def md5(self, src):
+        m2 = hashlib.md5()
+        m2.update(src)
+        return m2.hexdigest()
 
     def now_datetime(self):
         now_datetime = time.strftime('_%Y-%m-%d_%H_%M_%S', time.localtime(time.time()))
@@ -397,12 +408,31 @@ class ZbxCommon(object):
         return ips
 
 
+    def get_uuid(self):
+        import uuid
+        return str(uuid.uuid4())
+
+
     def get_one_ip(self):
         #ret = [x for x in self.get_all_ip_list() if x.startswith('10') or x.startswith('172') or x.startswith('192')]
         ret = [x for x in self.get_all_ip_list() if x.startswith('10.') or  x.startswith('172.') or  x.startswith('192.') ]
         if len(ret)>1:
             return ret[0]
         return ''.join(ret)
+
+    def get_product_uuid(self):
+        (status,product_uuid)=commands.getstatusoutput('cat /sys/devices/virtual/dmi/id/product_uuid')
+        if status!=0:
+            uuid_file='/etc/uuid'
+            if not os.path.exists(uuid_file):
+                product_uuid=self.get_uuid()
+                with open(uuid_file,'w') as file:
+                    file.write(product_uuid)
+            else:
+                with open(uuid_file,'r') as file:
+                    product_uuid=file.read(product_uuid)
+        return product_uuid
+
 
     def get_hostname(self):
         os_name = os.name
@@ -609,23 +639,27 @@ server_url=http://127.0.0.1:8005
 
         #path=tempfile.gettempdir()+os.sep+'zbxcli';
         filename=''
-        dir='./'
-        argv= self.util.parse_argv(args)
+        dir='shell'
+        # argv= self.util.parse_argv(args)
+        argv= self.util.getopt(args)
+
         if 'f' in argv.keys():
             filename=argv['f']
         else:
             return '(error) -f(filename) require'
-        path=script_path
+        if 'd' in argv.keys():
+            dir=argv['d']
+        path=script_path+os.path.sep+dir
+        print(path)
         if not os.path.exists(path):
             self.util.execute('mkdir -p %s'%path)
 
-        if 'd' in argv.keys():
-            dir=argv['d']
+
         fn=path+os.path.sep+filename
         src=''
         is_python=False
         result=-1
-        if not os.path.exists(fn) or os.stat(fn).st_mtime<(time.time()-10*60):
+        if not os.path.exists(fn) or os.stat(fn).st_mtime<(time.time()-10*60) or 'u' in argv.keys():
             src=self.util.url_fetch(self.entry%'shell',{ 'file':filename, 'param': json.dumps(args[1:]),'dir':dir},timeout=60*60)
         if src!='':
             open(fn,'w').write(src)
@@ -639,14 +673,15 @@ server_url=http://127.0.0.1:8005
         if line.find('python')>0:
                 is_python=True
         if is_python:
-            cmd=ZbxCommand('/usr/bin/python %s %s'% (fn,self.util.command_args(args[1:])))
+            cmd=ZbxCommand('/usr/bin/python %s %s'% (fn,self.util.command_args(args[2:])))
             result=cmd.run(60*60*24)
         else:
-            cmd=ZbxCommand('/bin/bash %s %s'% (fn,self.util.command_args(args[1:])))
+            cmd=ZbxCommand('/bin/bash %s %s'% (fn,self.util.command_args(args[2:])))
             result=cmd.run(60*60*24)
         print(result)
 
 class ZbxDaemon(Daemon):
+
 
 
 
@@ -668,23 +703,29 @@ class ZbxDaemon(Daemon):
                 if not isinstance(self.etcd_list,list):
                     raise Exception("get etcd list error")
                 for host in self.etcd_list:
-                    print(self.util.url_fetch("http://%s/v2/keys%s/heartbeat" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'heartbeat'},httpCmd = 'PUT' ))
-                    print(self.util.url_fetch("http://%s/v2/keys%s/servers" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'servers'},httpCmd = 'PUT' ))
+                    print(self.util.url_fetch_witherr("http://%s/v2/keys%s/heartbeat" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'heartbeat'},httpCmd = 'PUT' ))
+                    print(self.util.url_fetch_witherr("http://%s/v2/keys%s/servers" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'servers'},httpCmd = 'PUT' ))
                 self.update_time = now
         except Exception as er:
             print(er)
             time.sleep(5)
-            return self.get_etcd()
+            # return self.get_etcd()
 
-
+    def heartbeat2server(self):
+        try:
+            ips=",".join(self.util.get_all_ip_list())
+            self.salt = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips])
+        except Exception as er:
+            logger.error('heartbeat2server'+str(er))
 
     def heartbeat(self):
         try:
             print("=== heartbeat start")
-            ip = self.util.get_one_ip()
+            ip = self.util.get_product_uuid()
             for host in self.etcd_list:
                 print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
-                html = self.util.url_fetch("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60,'value':'2333'},httpCmd = 'PUT' )
+                ips=",".join(self.util.get_all_ip_list())
+                html = self.util.url_fetch("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*3,'value':ips},httpCmd = 'PUT' )
                 if html != "":
                     break
             print("=== heartbeata end")
@@ -695,7 +736,7 @@ class ZbxDaemon(Daemon):
 
     def watch_commmand(self):
         try:
-            ip = self.util.get_one_ip()
+            ip = self.util.get_product_uuid()
             print("watch_commmand",ip,self.etcd_list)
             for host in self.etcd_list:
                 self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
@@ -707,10 +748,6 @@ class ZbxDaemon(Daemon):
         except Exception as er:
             print(er)
             logger.error('watch_commmand error:'+str(er))
-
-
-
-
 
 
 
@@ -733,19 +770,29 @@ class ZbxDaemon(Daemon):
                 return
 
             for cNode in  rjson['node']['nodes']:
-                cmd = cNode['value'].encode("utf-8")
                 key = cNode['key']
                 createdIndex = cNode['createdIndex']
-                # self.keys.append(key)
-                url = "http://%s/v2/keys%s?recursive=true" % (host,key)
-                self.util.url_fetch(url,httpCmd= 'DELETE' )
-                def tmp():
-                    result = ZbxCommand(cmd).run()
-                    print(type(result))
-                    message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
-                    print(message)
+                cNode=json.loads(cNode['value'])
+                cmd = cNode['cmd'].encode('utf-8')
+                md5 = cNode['md5']
+                if md5==self.util.md5(cmd+self.salt):
+
+                    # self.keys.append(key)
+                    url = "http://%s/v2/keys%s?recursive=true" % (host,key)
+                    self.util.url_fetch(url,httpCmd= 'DELETE' )
+                    def tmp():
+                        result = ZbxCommand(cmd).run()
+                        #print(type(result))
+                        message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
+                        #print(message)
+                        self.remote_server('cli','feedback_result',{'param':message})
+                    threading.Thread(target=tmp).start()
+                else:
+                    url = "http://%s/v2/keys%s?recursive=true" % (host,key)
+                    self.util.url_fetch(url,httpCmd= 'DELETE' )
+                    message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
                     self.remote_server('cli','feedback_result',{'param':message})
-                threading.Thread(target=tmp).start()
+
 
 
         except BaseException as e:
@@ -755,13 +802,29 @@ class ZbxDaemon(Daemon):
 
 
 
+    def sync_conf(self):
+        while True:
+            try:
+                self.get_etcd()
+                self.heartbeat2server()
+                time.sleep(60*5)
+            except Exception as er:
+                pass
+
 
     def run(self):
         self.update_time=time.time()-800
 
+
+        sync=threading.Thread(target=self.sync_conf)
+        sync.setDaemon(True)
+        sync.start()
+
+        time.sleep(2)
+
         while True:
             try:
-                self.get_etcd()
+                # self.get_etcd()
                 self.heartbeat()
                 self.watch_commmand()
                 time.sleep(1)
