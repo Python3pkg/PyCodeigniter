@@ -264,7 +264,8 @@ class ZbxCommon(object):
 
 
     def _url_fetch(self,url,data=None,timeout=30,httpCmd='',debug=False):
-        html='';
+        html=''
+        handle=None
         # print(url)
         home= os.path.expanduser('~')
         fn=home+'/.cli'
@@ -279,6 +280,7 @@ class ZbxCommon(object):
             }
             if data!=None:
                 data=urllib.urlencode(data)
+
             req = urllib2.Request(
                 url =url,
                 headers = headers,
@@ -287,7 +289,12 @@ class ZbxCommon(object):
             if httpCmd != "":
                 req.get_method = lambda: httpCmd
 
-            html=urllib2.urlopen(req,timeout=timeout).read()
+            handle=urllib2.urlopen(req,timeout=timeout)
+
+
+
+            html=handle.read()
+
             charset=re.compile(r'<meta[^>]*charset=[\'\"]*?([a-z0-8\-]+)[\'\"]?[^>]*?>',re.IGNORECASE).findall(html)
             if len(charset) >0:
                 if charset[0]=='gb2312':
@@ -296,6 +303,13 @@ class ZbxCommon(object):
             #print(html)
         except Exception as e:
             raise Exception(e)
+        finally:
+            if handle!=None and handle.fp!=None:
+                try:
+                    handle.fp.close()
+                except Exception as er:
+                    pass
+
         return html
     def getopt(self,inputs):
         def ptype(input):
