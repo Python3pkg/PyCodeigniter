@@ -359,7 +359,7 @@ class Cli:
             return '(error) invalid request'
         objs=self.getobjs(json.dumps({'t':'uuid=%s'% params['uuid'],'o':'heartbeat'}))
 
-        salt= ci.uuid()
+        salt= str(ci.uuid())
         utime=str(datetime.datetime.now())
         if objs==None or len(objs)==0:
             param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt,utime),'o':'heartbeat','i':params['i']}

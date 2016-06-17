@@ -715,6 +715,7 @@ class ZbxDaemon(Daemon):
         try:
             ips=",".join(self.util.get_all_ip_list())
             self.salt = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips])
+            print('salt',self.salt)
         except Exception as er:
             logger.error('heartbeat2server'+str(er))
 
