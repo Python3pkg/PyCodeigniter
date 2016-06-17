@@ -12,6 +12,7 @@ import re
 import sys
 import time
 import base64
+import datetime
 # from sql4json.sql4json import *
 
 # OP_NOT_VALID = -1
@@ -351,18 +352,22 @@ class Cli:
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
-    def heartbeat(self,param):
+    def heartbeat(self,param=''):
+        print(ci.local.env)
         params=self._params(param)
+        if 'uuid' not in params.keys():
+            return '(error) invalid request'
         objs=self.getobjs(json.dumps({'t':'uuid=%s'% params['uuid'],'o':'heartbeat'}))
 
         salt= ci.uuid()
-        utime=str(time.time())
+        utime=str(datetime.datetime.now())
         if objs==None or len(objs)==0:
-            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt),'o':'heartbeat','i':params['i']}
+            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt,utime),'o':'heartbeat','i':params['i']}
+            self.addobjs(json.dumps(param))
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
-            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s'%(params['uuid'],params['ips'],salt),'o':'heartbeat','i':params['i']}
+            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt,utime),'o':'heartbeat','i':params['i']}
             self.addobjs(json.dumps(param))
         else:
             ci.logger.error(params['uuid'])
@@ -377,9 +382,6 @@ class Cli:
             cmd=''
             ip=''
             timeout=3
-
-
-
             if  'c' in params:
                 cmd=params['c']
             else:
@@ -393,11 +395,15 @@ class Cli:
             import urllib2,urllib
             objs=self.getobjs(json.dumps({'t':'(ips in %s)'% ip,'o':'heartbeat'}))
             salt=''
-            if objs==None or len(objs)>1:
+            puuid=''
+            if objs==None or len(objs)>1 or len(objs)==0:
                 return '(error) invalid ip'
             elif len(objs)==1:
                 puuid=objs[0]['uuid']
                 salt=objs[0]['salt']
+
+            if puuid=='' or salt=='':
+                return '(error)client not online'
 
             data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt))}) }
             data=urllib.urlencode(data)

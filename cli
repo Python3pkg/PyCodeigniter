@@ -708,7 +708,7 @@ class ZbxDaemon(Daemon):
                 self.update_time = now
         except Exception as er:
             print(er)
-            time.sleep(5)
+            # time.sleep(5)
             # return self.get_etcd()
 
     def heartbeat2server(self):
@@ -725,7 +725,7 @@ class ZbxDaemon(Daemon):
             for host in self.etcd_list:
                 print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
                 ips=",".join(self.util.get_all_ip_list())
-                html = self.util.url_fetch("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*3,'value':ips},httpCmd = 'PUT' )
+                html = self.util.url_fetch("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
                 if html != "":
                     break
             print("=== heartbeata end")
@@ -806,9 +806,11 @@ class ZbxDaemon(Daemon):
         while True:
             try:
                 self.get_etcd()
+                self.heartbeat()
                 self.heartbeat2server()
-                time.sleep(60*5)
+                time.sleep(60*3)
             except Exception as er:
+                logger.error('sync_conf error:'+str(er))
                 pass
 
 
@@ -825,7 +827,7 @@ class ZbxDaemon(Daemon):
         while True:
             try:
                 # self.get_etcd()
-                self.heartbeat()
+                # self.heartbeat()
                 self.watch_commmand()
                 time.sleep(1)
             except BaseException as e:
