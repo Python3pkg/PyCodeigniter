@@ -15,268 +15,7 @@ import base64
 import datetime
 # from sql4json.sql4json import *
 
-# OP_NOT_VALID = -1
-# OP_EQUAL = 1
-# OP_NOT_EQUAL = 2
-#
-# class Match_Helper():
-#     def __init__(self, content_dict, is_regex=False):
-#
-#         self.content = {}
-#         for k, val in content_dict.iteritems():
-#             self.content[k.lower()] = val.lower()
-#
-#         self.is_regex = is_regex
-#         self.expr = None
-#
-#     @staticmethod
-#     def check_pattern(expr):
-#         if not expr:
-#             return False
-#
-#         lcount = expr.count('(')
-#         rcount = expr.count(')')
-#         return lcount == rcount
-#
-#     def find_operator(self, expr):
-#         """
-#         返回 op_type， key, value
-#         :param expr:
-#         :return:
-#         """
-#         length = len(expr)
-#         idx_e = expr.find('=') if expr.find('=') != -1 else length
-#         idx_ne = expr.find('<>') if expr.find('<>') != -1 else length
-#         idx = min(idx_e, idx_ne)
-#         if idx == length:
-#             return -1, '', ''
-#
-#         key = expr[:idx].strip().lower()
-#         val = expr[idx + (1 if idx == idx_e else 2):].strip().lower()
-#         return (OP_EQUAL if idx == idx_e else OP_NOT_EQUAL), key, val
-#
-#     def compute(self, expr):
-#         expr = expr.strip()
-#         op_type, op_key, op_val = self.find_operator(expr)
-#         if op_type == OP_NOT_VALID:
-#             return False  # TODO 表达式不合法，这里应该终止计算，先做返回False处理
-#         val_content = self.content.get(op_key, '').lower()
-#
-#         bfilter, ret = self._filter(op_key, op_val, val_content, op_type)
-#         if bfilter:
-#             return ret
-#         else:
-#             if op_type == OP_EQUAL:
-#                 return self.compute_equal(op_val, val_content, self.is_regex)
-#             else:
-#                 return self.compute_not_equal(op_val, val_content, self.is_regex)
-#
-#     def _filter(self, key, val_pattern, val_content, op_type):
-#         if self.is_regex or key != 'hostgroup':
-#             return False, False
-#
-#         hostgroup_list = [s.strip() for s in val_content.split(',')]
-#         if op_type == OP_EQUAL:
-#             return True, val_pattern in hostgroup_list
-#         else:
-#             return True, val_pattern not in hostgroup_list
-#
-#     def compute_equal(self, val_pattern, val_content, is_regex):
-#         if self.is_regex:
-#             return True if re.search(val_pattern, val_content, re.IGNORECASE) else False
-#         else:
-#             return True if val_content == val_pattern else False
-#         pass
-#
-#     def compute_not_equal(self, val_pattern, val_content, is_regex):
-#         if self.is_regex:
-#             return True if not re.search(val_pattern, val_content, re.IGNORECASE) else False
-#         else:
-#             return True if val_content != val_pattern else False
-#         pass
-#
-#     # pattern = '(host=MZKJ-PC-02876)and(hostgroup=Discovered hosts)and((level=Warning)or(Critical))'
-#     def calculate(self):
-#         self.expr = self.expr.strip()
-#         if len(self.expr) == 0:
-#             return False
-#
-#         if self.expr[0] == '(':
-#             self.expr = self.expr[1:]
-#             ret = self.calculate()
-#             assert self.expr[0] == ')'
-#             self.expr = self.expr[1:].lstrip()
-#
-#             if self.expr.startswith('and'):
-#                 self.expr = self.expr[3:]
-#                 return self.calculate() and ret
-#             elif self.expr.startswith('or'):
-#                 self.expr = self.expr[2:]
-#                 return self.calculate() or ret
-#             else:
-#                 return ret
-#         else:
-#             ridx = self.expr.find(')')
-#             if ridx == -1:
-#                 return self.compute(self.expr)
-#             ret = self.compute(self.expr[:ridx])
-#             self.expr = self.expr[ridx:]
-#             return ret
-#
-#     def match(self, expr):
-#         expr = expr.strip()
-#         if not self.check_pattern(expr):
-#             return False
-#
-#         self.expr = expr
-#         return self.calculate()
-#
-#
-# class Match:
-#     def __init__(self):
-#         pass
-#
-#     def match(self, pattern, content_dict, is_regex=False):
-#         matcher = Match_Helper(content_dict, is_regex)
-#         if isinstance(pattern, (tuple, list)):
-#             ret = {}
-#             for i in range(len(pattern)):
-#                 ret[i] = matcher.match(pattern[i])
-#             return ret
-#         else:
-#             return matcher.match(pattern)
-#
-#     def is_valid_pattern(self, pattern):
-#         return Match_Helper.check_pattern(pattern)
 
-
-# if __name__ == '__main__':
-#     pattern = [
-#         '(((hostname=MZKJ-PC-02876)))',
-#         '(hostname=MZKJ-CentOS7-17.16.137.8) and ( hostgroup=Discovered hosts, Linux servers)and(((level=Warning)or(level=Critical)))'
-#     ]
-#     content = "event_time=14:58:57|event_value=1|level=Warning|expression={MZKJ-CentOS7-17.16.137.8:system.cpu.util[0,,avg1].last()}>5|hostname=MZKJ-CentOS7-17.16.137.8|hostgroup=Discovered hosts, Linux servers|templatename=Template OS Linux|ip=172.16.137.8|item_name=Processor load (1 min average per core)|item_value=6.968583"
-#
-#     import sys
-#
-#     sys.path.append('..')
-#     # from helpers.help import Helper
-#
-#     # print content
-#     start=time.time()
-#     for i in xrange(1,100000):
-#         Match().match(pattern,{'event_value':'Linux','expression':'abc'})
-#     print(time.time()-start)
-
-
-
-############################# new exp ############################as
-
-
-
-class Expr:
-    def __init__(self, expr):
-        self.op_map = {
-            '=': self._equal_,
-            '!=': self._not_equal,
-            '<>': self._not_equal,
-            'like': self._like
-        }
-        self.key, self.op, self.val = self.__parser(expr)
-        self.func = self.op_map[self.op]
-
-    def __parser(self, expr):
-        op = map(lambda x: [expr.find(x), x], filter(lambda x: x in expr, self.op_map.keys()))
-        assert len(op) >= 1
-
-        op = min(op)
-        return str(expr[:op[0]]).strip().lower(), str(op[1]).strip().lower(), str(expr[op[0] + len(op[1]):]).strip().lower()
-
-    def _equal_(self, fst_val, sec_val):
-        return fst_val == sec_val
-
-    def _like(self,fst_val,sec_val):
-        return fst_val in sec_val
-
-
-    def _not_equal(self, fst_val, sec_val):
-        return fst_val != sec_val
-
-    def compute(self, data_dict):
-        v=data_dict.get(self.key, '')
-        if isinstance(v,unicode):
-            v = v.encode('utf-8')
-        sec_val = str(v).lower()
-        return self.func(self.val, sec_val)
-
-
-class Matcher:
-    def __init__(self, pattern_expr):
-        self.raw_pattern_expr = pattern_expr
-        self.postfix_expr_list = self.__translate_to_postfix_expr(pattern_expr)
-        pass
-
-
-    def __is_startswith_op(self, pattern_expr):
-        if pattern_expr.startswith('('):
-            return True, '(', pattern_expr[1:]
-        elif pattern_expr.startswith('or'):
-            return True, 'or', pattern_expr[2:]
-        elif pattern_expr.startswith('and'):
-            return True, 'and', pattern_expr[3:]
-        else:
-            return False, '', pattern_expr
-
-    def __translate_to_postfix_expr(self, pattern_expr):
-        postfix_expr_list = []
-        tmp_stack = []
-
-        while True:
-            pattern_expr = pattern_expr.strip()
-            if len(pattern_expr) <= 0:
-                break
-
-            is_op, op, pattern_expr = self.__is_startswith_op(pattern_expr)
-            if is_op:
-                tmp_stack.append(op)
-            else:
-                idx = pattern_expr.find(')')
-                if idx != 0:
-                    postfix_expr_list.append(Expr(pattern_expr if idx == -1 else pattern_expr[:idx]))
-                pattern_expr = pattern_expr[idx + 1:]
-
-                while True:
-                    t = tmp_stack.pop()
-                    if t == '(':
-                        break
-                    postfix_expr_list.append(t)
-
-        while len(tmp_stack) > 0:
-            postfix_expr_list.append(tmp_stack.pop())
-
-        print postfix_expr_list
-        return postfix_expr_list
-
-
-    def calc(self, data_dict):
-        tmp_list = []
-        for i in range(len(self.postfix_expr_list)):
-            op = self.postfix_expr_list[i]
-            if isinstance(op, Expr):
-                tmp_list.append(op.compute(data_dict))
-            else:
-                fst_val = tmp_list.pop()
-                sec_val = tmp_list.pop()
-                tmp_list.append((fst_val and sec_val) if op == 'and' else (fst_val or sec_val))
-        return tmp_list[0]
-
-
-class Match_Utils:
-    def __init__(self):
-        pass
-
-    def Match(self, data_dict, pattern_expr):
-        return Matcher(pattern_expr).calc(data_dict=data_dict)
 
 
 
@@ -293,6 +32,48 @@ def auth(func):
 
 
 
+class HeartBeat(object):
+
+    def __init__(self):
+        self.filename='heartbeat.json'
+        self.data=[]
+        self.load_data()
+        self.uuids=set()
+
+
+    def heartbeat(self,params):
+        if 'uuid' not in params.keys():
+            return '(error) invalid request'
+        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%params['uuid'])
+        self.uuids.add(params['uuid'])
+        salt= str(ci.uuid())
+        utime=str(datetime.datetime.now())
+        if objs==None or len(objs)==0:
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime}
+            self.data.append(param)
+        elif len(objs)==1:
+            if 'salt' in objs[0].keys():
+                salt=objs[0]['salt']
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime}
+            return salt
+        else:
+            ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
+        return salt
+
+    def uuid(self,ip):
+        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s)"% (ip))
+        return objs
+
+    def load_data(self):
+        if os.path.isfile(self.filename):
+            with open(self.filename,'r') as file:
+                self.data=json.loads( file.read())
+
+    def dump_data(self):
+        with open(self.filename,'w+') as file:
+            file.write(json.dumps(self.data))
+
+
 
 
 
@@ -300,7 +81,8 @@ class Cli:
 
     def __init__(self):
         self.cmdkeys={}
-        pass
+
+        self.hb=HeartBeat()
 
 
 
@@ -353,26 +135,9 @@ class Cli:
 
 
     def heartbeat(self,param=''):
-        print(ci.local.env)
         params=self._params(param)
-        if 'uuid' not in params.keys():
-            return '(error) invalid request'
-        objs=self.getobjs(json.dumps({'t':'uuid=%s'% params['uuid'],'o':'heartbeat'}))
-
-        salt= str(ci.uuid())
-        utime=str(datetime.datetime.now())
-        if objs==None or len(objs)==0:
-            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt,utime),'o':'heartbeat','i':params['i']}
-            self.addobjs(json.dumps(param))
-        elif len(objs)==1:
-            if 'salt' in objs[0].keys():
-                salt=objs[0]['salt']
-            param={'k':params['uuid'],'t':'uuid=%s;ips=%s;salt=%s;utime=%s'%(params['uuid'],params['ips'],salt,utime),'o':'heartbeat','i':params['i']}
-            self.addobjs(json.dumps(param))
-        else:
-            ci.logger.error(params['uuid'])
-        return salt
-        # print self.addobjs(json.dumps(param))
+        etcd= self.getetcd(params)
+        return  {'etcd':etcd, 'salt': self.hb.heartbeat(params)}
 
 
     def cmd(self,param=''):
@@ -393,7 +158,7 @@ class Cli:
             if  't' in params:
                 timeout= float( params['t'])
             import urllib2,urllib
-            objs=self.getobjs(json.dumps({'t':'(ips in %s)'% ip,'o':'heartbeat'}))
+            objs=self.hb.uuid(ip)
             salt=''
             puuid=''
             if objs==None or len(objs)>1 or len(objs)==0:
@@ -401,6 +166,7 @@ class Cli:
             elif len(objs)==1:
                 puuid=objs[0]['uuid']
                 salt=objs[0]['salt']
+                print('salt',salt)
 
             if puuid=='' or salt=='':
                 return '(error)client not online'
@@ -1012,28 +778,19 @@ class Cli:
         #return ci.loader.helper('DictUtil').query(rows,'select aa,bb,ip where ip like 172.17.140.133')
         return ci.loader.helper('DictUtil').query({"xx":"x"},"select aa,bb,ip where ip like '' ")
 
-    def abc(self):
+    def abc(self,param=''):
+        return u'你好'
         s=time.time()
         for i in xrange(1,100000):
             self._cache_table('hosts')[0]
         print(time.time()-s)
         return 'abc'
 
-    @CI_Cache.Cache(ttl=3600,key='#ip')
-    def test2(self,id="id",ip='172.16.133.12',dd={'ip':'xxxxxxxxx'},xx=''):
-        print 'xxxxxxxx'
-        # start=time.time()
-        # rows=self.db.query('select * from hosts limit 5')
-        # print(time.time()-start)
-        # start=time.time()
-        # data=[]
-        #
-        #
-        # for index,row in enumerate(rows):
-        #     r=json.loads(row['body'])
-        #
-        #     rows[index]=r
-        # return rows
+
+    def test2(self,param=''):
+        # pass
+        print ci.db.query("select * from objs where ip='{ip}'",{'ip':'172.17.140.133'})
+
 
 
 
@@ -1169,12 +926,12 @@ class Cli:
                         return messege.encode('utf-8')
                     body[kv[0]]=kv[1]
 
-            row=ci.db.scalar("select id,body from objs where key='{key}' and otype='{otype}' limit 1 offset 0",{'key':key,'otype':otype})
+            row=ci.db.scalar("select id,body from objs where `key`='{key}' and otype='{otype}' limit 1 offset 0",{'key':key,'otype':otype})
             if row==None:
                 body['_key']=key
                 body['_otype']=otype
                 data={'ip':ip,'body':json.dumps(body),'otype':otype,'key':key}
-                ci.db.query("insert into objs(ip,body,otype,key) values('{ip}','{body}','{otype}','{key}')",data)
+                ci.db.query("insert into objs(ip,body,otype,`key`) values('{ip}','{body}','{otype}','{key}')",data)
             else:
                 old=json.loads(row['body'])
                 for k in body.keys():
@@ -1200,6 +957,6 @@ class Cli:
             cols= params['c']
         rows=ci.db.query("select * from objs where otype='{otype}'",{'otype':otype})
         rows=map(lambda row:json.loads(row['body']),rows)
-        print(rows)
+        # print(rows)
         return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
 
