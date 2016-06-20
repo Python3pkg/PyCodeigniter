@@ -146,7 +146,7 @@ class Cli:
     def cmd(self,param=''):
         try:
             params=self._params(param)
-            etcd=self.getetcd(param)
+            etcd=self.hb.getetcd(params)
             cmd=''
             ip=''
             timeout=3
