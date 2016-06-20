@@ -28,10 +28,13 @@ from logging.handlers import RotatingFileHandler
 import json
 import random
 import commands
+import platform
+import socket
 
 
 pidfile="/var/zbxcli.pid"
 server_url="http://172.17.140.116:8005"
+# server_url="http://10.3.155.104:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 
@@ -198,7 +201,10 @@ class ZbxCommand(object):
             util.url_fetch(server_url+'/slowlog',{'param':{ 'cmd':self.cmd,'ip':util.get_one_ip()}})
             return "13800138000"
         result= open(tempfile.gettempdir()+ os.path.sep+self.uuid,'r').read()
-        os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
+        try:
+            os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
+        except Exception as er:
+            pass
         return result
 
 
@@ -413,14 +419,20 @@ class ZbxCommon(object):
 
 
     def get_all_ip_list(self):
-        cmdline = "ip a | egrep \"^\s*inet.*\" | grep -v inet6 | awk '{print $2}' | awk -v FS='/' '{print $1}'"
-        ret = self.execute(cmdline)
-        lip=re.split(r'\n',ret)
-        ips=[]
-        for ip in lip:
-            if str(ip).strip ()!='':
-              ips.append(ip.strip())
-        return ips
+        if platform.system().lower()=='windows':
+            name,xx,ips=socket.gethostbyname_ex(socket.gethostname())
+            return ips
+
+        else:
+            cmdline = "ip a | egrep \"^\s*inet.*\" | grep -v inet6 | awk '{print $2}' | awk -v FS='/' '{print $1}'"
+            ret = self.execute(cmdline)
+            lip=re.split(r'\n',ret)
+            ips=[]
+            for ip in lip:
+                if str(ip).strip ()!='':
+                  ips.append(ip.strip())
+            return ips
+
 
 
     def get_uuid(self):
@@ -747,7 +759,10 @@ class ZbxDaemon(Daemon):
             for host in self.etcd_list:
                 print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
                 ips=",".join(self.util.get_all_ip_list())
-                html = self.util.url_fetch("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
+                try:
+                    html = self.util.url_fetch_witherr("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
+                except Exception as her:
+                    pass
                 if html != "":
                     break
             print("=== heartbeata end")
@@ -762,7 +777,12 @@ class ZbxDaemon(Daemon):
             print("watch_commmand",ip,self.etcd_list)
             for host in self.etcd_list:
                 self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
-                content = self.util.url_fetch("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                content=''
+                try:
+                    content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                except Exception as her:
+                    print(her)
+                    pass
                 print("content   "+content)
                 if content != "":
                     self.feedback_result(ip,host,content)
@@ -805,9 +825,20 @@ class ZbxDaemon(Daemon):
                     def tmp():
                         result = ZbxCommand(cmd).run()
                         #print(type(result))
+                        try:
+                            result=result.decode('utf-8')
+                        except Exception as utfer:
+                            try:
+                                result=result.decode('gbk')
+                            except Exception as gbker:
+                                try:
+                                    result=result.decode('utf-8','ignore')
+                                except Exception as ler:
+                                    pass
                         message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
-                        #print(message)
+                        # print(type(message))
                         self.remote_server('cli','feedback_result',{'param':message})
+                        # print json.dumps(message)
                     threading.Thread(target=tmp).start()
                 else:
                     print('salt error',self.salt)
@@ -830,8 +861,8 @@ class ZbxDaemon(Daemon):
         while True:
             try:
                 # self.get_etcd()
-                self.heartbeat()
                 self.heartbeat2server()
+                self.heartbeat()
                 time.sleep(60*2+ random.randint(1,60*3))
             except Exception as er:
                 logger.error('sync_conf error:'+str(er))
