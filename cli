@@ -811,6 +811,7 @@ class ZbxDaemon(Daemon):
                     threading.Thread(target=tmp).start()
                 else:
                     print('salt error',self.salt)
+                    logger.error('miss command %s ' %(cmd))
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
