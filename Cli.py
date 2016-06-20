@@ -41,6 +41,11 @@ class HeartBeat(object):
         self.uuids=set()
 
 
+    def getetcd(self,param=''):
+        return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
+
+
+
     def heartbeat(self,params):
         if 'uuid' not in params.keys():
             return '(error) invalid request'
@@ -55,10 +60,11 @@ class HeartBeat(object):
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime}
-            return salt
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
-        return salt
+        etcd=self.getetcd(params)
+        return {'etcd':etcd, 'salt':salt}
+
 
     def uuid(self,ip):
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s)"% (ip))
@@ -72,9 +78,6 @@ class HeartBeat(object):
     def dump_data(self):
         with open(self.filename,'w+') as file:
             file.write(json.dumps(self.data))
-
-
-
 
 
 class Cli:
@@ -122,10 +125,6 @@ class Cli:
          '''
         return h
 
-
-    def getetcd(self,param=''):
-        return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
-
     def feedback_result(self,param=''):
         print(param)
         data=json.loads(param)['param']
@@ -136,8 +135,12 @@ class Cli:
 
     def heartbeat(self,param=''):
         params=self._params(param)
-        etcd= self.getetcd(params)
-        return  {'etcd':etcd, 'salt': self.hb.heartbeat(params)}
+        return self.hb.heartbeat(params)
+
+
+    def dump_heartbeat(self,param=''):
+        self.hb.dump_data()
+        return 'ok'
 
 
     def cmd(self,param=''):
