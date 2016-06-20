@@ -445,7 +445,7 @@ class ZbxCommon(object):
                     file.write(product_uuid)
             else:
                 with open(uuid_file,'r') as file:
-                    product_uuid=file.read(product_uuid)
+                    product_uuid=file.read()
         return product_uuid
 
 
@@ -832,7 +832,7 @@ class ZbxDaemon(Daemon):
                 # self.get_etcd()
                 self.heartbeat()
                 self.heartbeat2server()
-                time.sleep(60*2+ random.randint(1,60))
+                time.sleep(60*2+ random.randint(1,60*3))
             except Exception as er:
                 logger.error('sync_conf error:'+str(er))
                 pass
