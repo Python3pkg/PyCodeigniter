@@ -861,7 +861,7 @@ class ZbxDaemon(Daemon):
             try:
                 # self.get_etcd()
                 self.heartbeat2server()
-                time.sleep(3)
+                time.sleep(2)
                 self.heartbeat()
                 time.sleep(60*2+ random.randint(1,60*3))
             except Exception as er:
@@ -877,7 +877,7 @@ class ZbxDaemon(Daemon):
         sync.setDaemon(True)
         sync.start()
 
-        time.sleep(2)
+        time.sleep(3)
 
         while True:
             try:

@@ -43,11 +43,11 @@ class HeartBeat(object):
         self.data=[]# {'uuid','status','utime','salt','ips'}
         self.load_data()
         self.uuids=set()
-        if not self._singleton:
-            chkthread=threading.Thread(target=self.check_online)
-            chkthread.setDaemon(True)
-            self._singleton=True
-            chkthread.start()
+        # if not self._singleton:
+        #     chkthread=threading.Thread(target=self.check_online)
+        #     chkthread.setDaemon(True)
+        #     self._singleton=True
+        #     chkthread.start()
 
 
 
@@ -61,15 +61,14 @@ class HeartBeat(object):
                 break
 
     def check_online(self):
-        while True:
-            try:
-                now=int(time.time())
-                for d in self.data:
-                    if now-d['utime']>60*10:
-                        d['status']='offline'
-                time.sleep(60*2)
-            except Exception as er:
-                pass
+        try:
+            now=int(time.time())
+            for d in self.data:
+                if now-d['utime']>60*10:
+                    d['status']='offline'
+            # time.sleep(60*2)
+        except Exception as er:
+            pass
 
     def getetcd(self,param=''):
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
@@ -95,7 +94,7 @@ class HeartBeat(object):
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
         etcd=self.getetcd(params)
-        return {'etcd':etcd, 'salt':salt}
+        return {'etcd':etcd, 'salt':salt,'server_count':len(self.data)}
 
 
     def get_product_uuid(self,ip):
