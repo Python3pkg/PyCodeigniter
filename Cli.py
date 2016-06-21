@@ -15,6 +15,8 @@ import base64
 import datetime
 # from sql4json.sql4json import *
 
+import threading
+
 
 
 
@@ -34,12 +36,40 @@ def auth(func):
 
 class HeartBeat(object):
 
+    _singleton=False
+
     def __init__(self):
         self.filename='heartbeat.json'
-        self.data=[]
+        self.data=[]# {'uuid','status','utime','salt','ips'}
         self.load_data()
         self.uuids=set()
+        if not self._singleton:
+            chkthread=threading.Thread(target=self.check_online)
+            chkthread.setDaemon(True)
+            self._singleton=True
+            chkthread.start()
 
+
+
+
+
+    def set_online(self,product_uuid,data):
+        for d in self.data:
+            if d['uuid']==product_uuid:
+                for k,v in data.items():
+                    d[k]=v
+                break
+
+    def check_online(self):
+        while True:
+            try:
+                now=int(time.time())
+                for d in self.data:
+                    if now-d['utime']>60*10:
+                        d['status']='offline'
+                time.sleep(60*2)
+            except Exception as er:
+                pass
 
     def getetcd(self,param=''):
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
@@ -52,21 +82,23 @@ class HeartBeat(object):
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%params['uuid'])
         self.uuids.add(params['uuid'])
         salt= str(ci.uuid())
-        utime=str(datetime.datetime.now())
+        utime=int(time.time())
         if objs==None or len(objs)==0:
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online'}
             self.data.append(param)
+            self.set_online(params['uuid'],param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online'}
+            self.set_online(params['uuid'],param)
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
         etcd=self.getetcd(params)
         return {'etcd':etcd, 'salt':salt}
 
 
-    def uuid(self,ip):
+    def get_product_uuid(self,ip):
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s)"% (ip))
         return objs
 
@@ -161,15 +193,19 @@ class Cli:
             if  't' in params:
                 timeout= float( params['t'])
             import urllib2,urllib
-            objs=self.hb.uuid(ip)
+            objs=self.hb.get_product_uuid(ip)
             salt=''
             puuid=''
-            if objs==None or len(objs)>1 or len(objs)==0:
+            if objs==None  or len(objs)==0:
                 return '(error) invalid ip'
             elif len(objs)==1:
                 puuid=objs[0]['uuid']
                 salt=objs[0]['salt']
+                if objs[0]['status']=='offline':
+                    return '(error) client status offline'
                 print('salt',salt)
+            elif len(objs)>1:
+                return '(error) too many ip matched'
 
             if puuid=='' or salt=='':
                 return '(error)client not online'

@@ -744,10 +744,9 @@ class ZbxDaemon(Daemon):
             ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips])
             objs= json.loads(ret)
             self.salt=objs['salt']
-            self.etcd_list=objs['etcd']
+            self.etcd_conf=objs['etcd']
             self.etcd_list=objs['etcd']['server']
             self.etcd_prefix=objs['etcd']['prefix']
-
             print('salt',self.salt)
         except Exception as er:
             logger.error('heartbeat2server'+str(er))
@@ -862,6 +861,7 @@ class ZbxDaemon(Daemon):
             try:
                 # self.get_etcd()
                 self.heartbeat2server()
+                time.sleep(3)
                 self.heartbeat()
                 time.sleep(60*2+ random.randint(1,60*3))
             except Exception as er:
