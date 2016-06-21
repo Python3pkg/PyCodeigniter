@@ -47,7 +47,7 @@ class HeartBeat(object):
             chkthread=threading.Thread(target=self.check_online)
             chkthread.setDaemon(True)
             self._singleton=True
-            chkthread.start()
+            # chkthread.start()
 
 
 
@@ -72,6 +72,7 @@ class HeartBeat(object):
                 pass
 
     def getetcd(self,param=''):
+        return {'server':['10.3.155.194:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
 
 

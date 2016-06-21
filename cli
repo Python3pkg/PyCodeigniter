@@ -677,7 +677,7 @@ server_url=http://127.0.0.1:8005
         if 'd' in argv.keys():
             dir=argv['d']
         path=script_path+os.path.sep+dir
-        print(path)
+        # print(path)
         if not os.path.exists(path):
             self.util.execute('mkdir -p %s'%path)
 
