@@ -620,6 +620,17 @@ class ZbxCli():
                 return
         print(ret)
 
+    def rexec(self,argv):
+        data= self.util.getopt(sys.argv[1:])
+        if 'u' not in data:
+            data['u']=raw_input('please input username: ')
+        if 'p' not in data:
+            import getpass
+            data['p']=getpass.getpass('please input password: ')
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
+        print(ret)
+
+
     def config(self,argv):
         conf='''
 pidfile=/var/zbxcli.pid
