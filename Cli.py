@@ -76,7 +76,7 @@ class HeartBeat(object):
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
 
 
-
+    @cache.Cache()
     def heartbeat(self,params):
         if 'uuid' not in params.keys():
             return '(error) invalid request'
@@ -405,6 +405,7 @@ class Cli:
         key='Mz'
         user='root'
         password='root'
+        port=22
         if 'i' in params:
             ip=params['i']
         else:
@@ -423,9 +424,11 @@ class Cli:
             user=params['u']
         if  'p' in params:
             password=params['p']
-        return self._remote_exec(ip,cmd,user,password)
+        if  'P' in params:
+            port=params['P']
+        return self._remote_exec(ip,cmd, user= user, password=password,port=port)
 
-    def _remote_exec(self,ip,cmd,user='root',password='root'):
+    def _remote_exec(self,ip,cmd,user='root',password='root',port=22):
        try:
            import paramiko
            ssh=paramiko.SSHClient()
@@ -441,7 +444,7 @@ class Cli:
            #        self.app.logger.error("USERERROR:"+str(err))
            #        ssh.connect(ip,16120,'root','root')
 
-           ssh.connect(ip,22,user,password)
+           ssh.connect(ip,port,user,password)
            ssh.exec_command('sudo -i')
            ret=[]
            reterr=[]
