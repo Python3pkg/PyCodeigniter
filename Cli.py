@@ -71,7 +71,7 @@ class HeartBeat(object):
             except Exception as er:
                 pass
 
-    def getetcd(self,param=''):
+    def getetcd(self,req,resp):
         return {'server':['10.3.155.194:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
 
@@ -123,7 +123,7 @@ class Cli:
 
 
     @auth
-    def index(self,param=''):
+    def index(self,req,resp):
         # print ci.local.env
         #ci.set_header('WWW-Authenticate','Basic realm="Authentication System"')
         #ci.set_header('HTTP/1.0 401 Unauthorized')
@@ -137,7 +137,7 @@ class Cli:
         print kwargs
         return "hello world".strip()
 
-    def help(self,param=''):
+    def help(self,req,resp):
         h='''
         ########## 文件与shell ##############
 
@@ -158,27 +158,27 @@ class Cli:
          '''
         return h
 
-    def feedback_result(self,param=''):
-        print(param)
+    def feedback_result(self,req,resp):
+        param=req.params['param']
         data=json.loads(param)['param']
         if 'index' in data.keys() and str(data['index']) in self.cmdkeys.keys():
             self.cmdkeys[str(data['index'])]=data['result']
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
-    def heartbeat(self,param=''):
-        params=self._params(param)
+    def heartbeat(self,req,resp):
+        params=self._params(req.params['param'])
         return self.hb.heartbeat(params)
 
 
-    def dump_heartbeat(self,param=''):
+    def dump_heartbeat(self,req,resp):
         self.hb.dump_data()
         return 'ok'
 
 
-    def cmd(self,param=''):
+    def cmd(self,req,resp):
         try:
-            params=self._params(param)
+            params=self._params(req.params['param'])
             etcd=self.hb.getetcd(params)
             cmd=''
             ip=''
@@ -247,25 +247,25 @@ class Cli:
 
 
 
-    def disableuser(self,param=''):
-        return self._userstatus(param,0)
-    def enableuser(self,param=''):
-        return self._userstatus(param,1)
-    def _userstatus(self,param='',status=0):
-        params=self._params(param)
+    def disableuser(self,req,resp):
+        return self._userstatus(req.params['param'],0)
+    def enableuser(self,req,resp):
+        return self._userstatus(req.params['param'],1)
+    def _userstatus(self,req,resp):
+        params=self._params(req.params['param'])
         user=''
         uuid='(error) not login'
         if  'u' in params:
             user=params['u']
         else:
             return '-u(user) require'
-        data={'user':user,'status':status}
+        data={'user':user,'status':params['status']}
         ci.db.query("update user set status='{status}' where user='{user}'",data)
         return 'success'
 
 
-    def dispatch_cmd(self,param=''):
-        params=self._params(param)
+    def dispatch_cmd(self,req,resp):
+        params=self._params(req.params['param'])
         if 'i' not in params:
              return '-i(ip) require'
 
@@ -278,8 +278,8 @@ class Cli:
 
 
 
-    def register(self,param=''):
-            params=self._params(param)
+    def register(self,req,resp):
+            params=self._params(req.params['param'])
             user=''
             pwd=''
             uuid='(error) not login'
@@ -299,8 +299,8 @@ class Cli:
             ci.db.query("insert into user(user,pwd) values('{user}','{pwd}')",data)
             return 'success'
 
-    def login(self,param=''):
-        params=self._params(param)
+    def login(self,req,resp):
+        params=self._params(req.params['param'])
         user=''
         pwd=''
         ip=''
@@ -338,15 +338,15 @@ class Cli:
         else:
             return "#!/bin/bash\n echo '(error) file not found'"
 
-    def upgrade(self,param=''):
+    def upgrade(self,req,resp):
         return open('cli').read()
 
     def _params(self,param='{}',opts=''):
         params= json.loads(param)
         return params
 
-    def listfile(self,param=''):
-        params=self._params(param)
+    def listfile(self,req,resp):
+        params=self._params(req.params['param'])
         if 'd' in params:
             directory=params['d']
         else:
@@ -355,12 +355,13 @@ class Cli:
         return "\n".join(os.listdir('files/'+directory))
 
 
-    def upload(self,**kwargs):
-        file=kwargs['file']
-        directory=kwargs['dir']
+    def upload(self,req,resp):
+        file=req.params['file']
+        filename=req.params['filename']
+        directory=req.params['dir']
         directory=directory.replace('.','')
         path='files/'+directory
-        filename=path+'/'+file.filename
+        filename=path+'/'+filename
         if not os.path.isdir(path):
             os.mkdir(path)
         if not os.path.exists(filename):
@@ -372,8 +373,8 @@ class Cli:
         else:
             return 'file exists'
 
-    def delfile(self,param=''):
-        params=self._params(param)
+    def delfile(self,req,resp):
+        params=self._params(req.params['param'])
         filename=''
         key='meizu.com'
         directory='/'
@@ -397,8 +398,8 @@ class Cli:
             return "sucess"
         else:
             return "Not Found"
-    def rexec(self,param=''):
-        params=self._params(param)
+    def rexec(self,req,resp):
+        params=self._params(req.params['param'])
         ip=''
         cmd=''
         k=''
@@ -471,8 +472,8 @@ class Cli:
                pass
 
 ################################################env###############################################
-    def _checkenv(self,param=''):
-        params=self._params(param)
+    def _checkenv(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         group='default'
         if 'g' in params:
@@ -486,8 +487,8 @@ class Cli:
             return True
         else:
             return False
-    def listenvgroup(self,param=''):
-        params=self._params(param)
+    def listenvgroup(self,req,resp):
+        params=self._params(req.params['param'])
         sql="select group_ from env group by group_"
         rows=ci.db.query(sql)
         ret=''
@@ -497,8 +498,8 @@ class Cli:
         return ret
 
         return ret
-    def listenv(self,param=''):
-        params=self._params(param)
+    def listenv(self,req,resp):
+        params=self._params(req.params['param'])
         group='default'
         export='0'
         if 'g' in params:
@@ -517,8 +518,8 @@ class Cli:
                 ret+=row['key_']+'='+row['value_']+"\n"
 
         return ret
-    def updateenv(self,param=''):
-        params=self._params(param)
+    def updateenv(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         value=''
         group='default'
@@ -532,13 +533,13 @@ class Cli:
             value=params['v']
         else:
             return '-v(value) require'
-        if not self._checkenv(param):
+        if not self._checkenv(req.params['param']):
             return '(error)key not is exsit'
         ci.db.update('env',{'value_':value},{'key_':key,'group_':group})
         return 'ok'
 
-    def addenv(self,param=''):
-        params=self._params(param)
+    def addenv(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         value=''
 
@@ -553,12 +554,12 @@ class Cli:
             value=params['v']
         else:
             return '-v(value) require'
-        if self._checkenv(param):
+        if self._checkenv(req.params['param']):
             return '(error)key is exsit'
         ci.db.insert('env',{'key_':key,'value_':value,'group_':group})
         return 'ok'
-    def delenv(self,param=''):
-        params=self._params(param)
+    def delenv(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         group='default'
         if 'g' in params:
@@ -567,13 +568,13 @@ class Cli:
             key=params['k']
         else:
             return '-k(key) require'
-        if self._checkenv(param):
+        if self._checkenv(req.params['param']):
             ci.db.delete('env',{'key_':key,'group_':group})
             return 'ok'
         else:
             return '(error)key no found'
-    def getenv(self,param=''):
-        params=self._params(param)
+    def getenv(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         group='default'
         if 'g' in params:
@@ -582,13 +583,13 @@ class Cli:
             key=params['k']
         else:
             return '-k(key) require'
-        if not self._checkenv(param):
+        if not self._checkenv(req.params['param']):
             return '(error)key no found'
         return ci.db.scalar("select value_ from env where `group_`='%s' and `key_`='%s'"% (group,key))['value_']
 
 ################################################ doc ###############################################
-    def _checkdoc(self,param=''):
-        params=self._params(param)
+    def _checkdoc(self,req,resp):
+        params=self._params(req.params['param'])
         id=''
         if 'k' in params:
             id=params['k']
@@ -599,10 +600,10 @@ class Cli:
             return True
         else:
             return False
-    def listdoc(self,param=''):
-        params=self._params(param)
+    def listdoc(self,req,resp):
+        params=self._params(req.params['param'])
         if 'k' in params:
-            return self.getdoc(param)
+            return self.getdoc(req.params['param'])
         sql="select cmd from doc group by cmd"
         rows=ci.db.query(sql)
         ret=''
@@ -612,8 +613,8 @@ class Cli:
         return ret
 
 
-    def adddoc(self,param=''):
-        params=self._params(param)
+    def adddoc(self,req,resp):
+        params=self._params(req.params['param'])
         cmd=''
         doc=''
         remark=''
@@ -642,20 +643,20 @@ class Cli:
         ci.db.query(sql,{'cmd':cmd,'doc':doc,'remark':remark})
         #ci.db.insert('doc',{'cmd':cmd,'doc':doc,'remark':remark})
         return 'ok'
-    def deldoc(self,param=''):
-        params=self._params(param)
+    def deldoc(self,req,resp):
+        params=self._params(req.params['param'])
         id=''
         if 'k' in params:
             id=params['k']
         else:
             return '-k(id) require'
-        if self._checkdoc(param):
+        if self._checkdoc(req.params['param']):
             ci.db.delete('doc',{'id':id})
             return 'ok'
         else:
             return '(error)key no found'
-    def getdoc(self,param=''):
-        params=self._params(param)
+    def getdoc(self,req,resp):
+        params=self._params(req.params['param'])
         key=''
         if 'k' in params:
             key=params['k']
@@ -677,8 +678,8 @@ class Cli:
         return ret
 
 ################################################ tags ###############################################
-    def addtag(self,param=''):
-        params=self._params(param)
+    def addtag(self,req,resp):
+        params=self._params(req.params['param'])
         table=''
         tag=''
         if 'tag' in params:
@@ -708,8 +709,8 @@ class Cli:
             ci.db.query("update tags set body='{body}' where id='{id}'",data)
         return 'success'
 
-    def listtag(self,param=''):
-        params=self._params(param)
+    def listtag(self,req,resp):
+        params=self._params(req.params['param'])
         rows=ci.db.query("select tbname,body from tags")
         # return rows
         s=set()
@@ -741,8 +742,8 @@ class Cli:
 
 ################################################ hosts ###############################################
 
-    def addhosttag(self,param=''):
-        params=self._params(param)
+    def addhosttag(self,req,resp):
+        params=self._params(req.params['param'])
         tag=''
         ip=''
         if 't' in params:
@@ -776,8 +777,8 @@ class Cli:
             ci.db.query("update hosts set ip='{ip}',body='{body}' where id='{id}'",data)
         return 'success'
     # @cache.Cache(ttl=300)
-    def gethost(self,param=''):
-        params=self._params(param)
+    def gethost(self,req,resp):
+        params=self._params(req.params['param'])
         if 't' not in params:
             return '-t(tag) require'
         rows=ci.db.query("select ip,body from hosts")
@@ -792,8 +793,8 @@ class Cli:
                 ret.append(row['app'])
         return "\n".join(ret)
 
-    def viewhost(self,param=''):
-        params=self._params(param)
+    def viewhost(self,req,resp):
+        params=self._params(req.params['param'])
         if 'i' not in params:
             return '-i(ip) require'
         else:
@@ -802,8 +803,8 @@ class Cli:
         row=ci.db.scalar("select ip,body from hosts where ip='{ip}' limit 1 offset 0",data)
         return row['body']
     # @cache.Cache(ttl=3600)
-    def listhosttag(self,param=''):
-        params=self._params(param)
+    def listhosttag(self,req,resp):
+        params=self._params(req.params['param'])
         rows=ci.db.query("select body from hosts")
         # return rows
         s=set()
@@ -819,14 +820,14 @@ class Cli:
         return ci.db.query("select * from %s" % table)
 
 
-    def aaa(self,param=''):
+    def aaa(self,req,resp):
         print ci.loader.helper('DictUtil')
         rows=ci.db.query('select * from hosts')
         print rows
         #return ci.loader.helper('DictUtil').query(rows,'select aa,bb,ip where ip like 172.17.140.133')
         return ci.loader.helper('DictUtil').query({"xx":"x"},"select aa,bb,ip where ip like '' ")
 
-    def abc(self,param=''):
+    def abc(self,req,resp):
         return u'你好'
         s=time.time()
         for i in xrange(1,100000):
@@ -835,14 +836,14 @@ class Cli:
         return 'abc'
 
 
-    def test2(self,param=''):
+    def test2(self,req,resp):
         # pass
         print ci.db.query("select * from objs where ip='{ip}'",{'ip':'172.17.140.133'})
 
 
 
 
-    def test3(self,param=''):
+    def test3(self,req,resp):
         rows=self._cache_table('hosts')
         for index,row in enumerate(rows):
             r=json.loads(row['body'])
@@ -858,7 +859,7 @@ class Cli:
 
 
 
-    def test(self,param=''):
+    def test(self,req,resp):
 
         # from data_query_engine import DataQueryEngine
 
@@ -941,8 +942,8 @@ class Cli:
         # return ret
 
 # ################################################ objs ###############################################
-    def addobjs(self,param=''):
-            params=self._params(param)
+    def addobjs(self,req,resp):
+            params=self._params(req.params['param'])
             tag=''
             ip=''
             otype='hosts'
@@ -988,8 +989,8 @@ class Cli:
                 ci.db.query("update objs set ip='{ip}',body='{body}' where id='{id}'",data)
             return 'success'
 
-    def getobjs(self,param=''):
-        params=self._params(param)
+    def getobjs(self,req,resp):
+        params=self._params(req.params['param'])
         otype=''
         tag=''
         cols='*'
