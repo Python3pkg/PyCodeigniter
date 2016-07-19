@@ -71,7 +71,7 @@ class HeartBeat(object):
             except Exception as er:
                 pass
 
-    def getetcd(self,req,resp):
+    def getetcd(self,param):
         return {'server':['10.3.155.194:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
 
