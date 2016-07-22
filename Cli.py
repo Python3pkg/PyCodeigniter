@@ -472,8 +472,8 @@ class Cli:
                pass
 
 ################################################env###############################################
-    def _checkenv(self,req,resp):
-        params=self._params(req.params['param'])
+    def _checkenv(self,param):
+        params=self._params(param)
         key=''
         group='default'
         if 'g' in params:
@@ -686,10 +686,10 @@ class Cli:
             tag=params['tag']
         else:
             return '--tag(tag) require'
-        if 'table' in params:
-            table=params['table']
+        if 'object' in params:
+            table=params['object']
         else:
-            return '--table(table name) require'
+            return '--object(object name) require'
         if tag.find('=')==-1:
             return 'tag must be "key=value"'
         body={}
