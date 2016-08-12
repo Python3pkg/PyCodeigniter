@@ -27,13 +27,12 @@ import getopt
 from logging.handlers import RotatingFileHandler
 import json
 import random
-import commands
 import platform
 import socket
 
 
 pidfile="/var/zbxcli.pid"
-server_url="http://172.17.140.116:8005"
+server_url="http://172.17.140.116:8006"
 # server_url="http://10.3.155.104:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
@@ -217,7 +216,7 @@ class ZbxCommon(object):
         try:
             data={'file':filename,'dir':directory}
             data=urllib.urlencode(data)
-            http_url='%s/download?%s' % (server_url,data)
+            http_url='%s/%s/download?%s' % (server_url,default_module,data)
             conn = urllib2.urlopen(http_url)
             f = open(filepath,'wb')
             f.write(conn.read())
@@ -448,8 +447,8 @@ class ZbxCommon(object):
         return ''.join(ret)
 
     def get_product_uuid(self):
-        (status,product_uuid)=commands.getstatusoutput('cat /sys/devices/virtual/dmi/id/product_uuid')
-        if status!=0:
+        product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
+        if product_uuid=="":
             uuid_file='/etc/uuid'
             if not os.path.exists(uuid_file):
                 product_uuid=self.get_uuid()
@@ -847,7 +846,7 @@ class ZbxDaemon(Daemon):
                                     pass
                         message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
                         # print(type(message))
-                        self.remote_server('cli','feedback_result',{'param':message})
+                        self.remote_server('cli','feedback_result',message)
                         # print json.dumps(message)
                     threading.Thread(target=tmp).start()
                 else:
@@ -856,7 +855,7 @@ class ZbxDaemon(Daemon):
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
-                    self.remote_server('cli','feedback_result',{'param':message})
+                    self.remote_server('cli','feedback_result',message)
 
 
 

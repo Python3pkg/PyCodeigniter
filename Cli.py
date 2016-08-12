@@ -72,11 +72,11 @@ class HeartBeat(object):
                 pass
 
     def getetcd(self,param):
-        return {'server':['10.3.155.194:4001'],'prefix':'/keeper'}
-        return {'server':['172.16.119.3:4001'],'prefix':'/keeper'}
+        return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
+        return {'server':['172.16.119.3:4001'],'prefix  ':'/keeper'}
 
 
-    @cache.Cache()
+    # @cache.Cache()
     def heartbeat(self,params):
         if 'uuid' not in params.keys():
             return '(error) invalid request'
@@ -160,7 +160,7 @@ class Cli:
 
     def feedback_result(self,req,resp):
         param=req.params['param']
-        data=json.loads(param)['param']
+        data=json.loads(param)
         if 'index' in data.keys() and str(data['index']) in self.cmdkeys.keys():
             self.cmdkeys[str(data['index'])]=data['result']
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
@@ -204,7 +204,6 @@ class Cli:
                 salt=objs[0]['salt']
                 if objs[0]['status']=='offline':
                     return '(error) client status offline'
-                print('salt',salt)
             elif len(objs)>1:
                 return '(error) too many ip matched'
 
@@ -330,13 +329,23 @@ class Cli:
         return str(uuid)
 
 
-    def shell(self,file='',param='',dir='shell'):
+    def shell(self,req,resp):
+        dir=req.params.get('dir','shell')
+        file=req.params.get('file','')
         dir=dir.replace('..','').replace('.','').replace('/','')
         path= 'files'+ os.path.sep+ dir+ os.path.sep + file
         if os.path.isfile(path):
             return open(path,'rb').read()
         else:
             return "#!/bin/bash\n echo '(error) file not found'"
+
+    # def shell(self,file='',param='',dir='shell'):
+    #     dir=dir.replace('..','').replace('.','').replace('/','')
+    #     path= 'files'+ os.path.sep+ dir+ os.path.sep + file
+    #     if os.path.isfile(path):
+    #         return open(path,'rb').read()
+    #     else:
+    #         return "#!/bin/bash\n echo '(error) file not found'"
 
     def upgrade(self,req,resp):
         return open('cli').read()
@@ -355,7 +364,26 @@ class Cli:
         return "\n".join(os.listdir('files/'+directory))
 
 
+    def download(self,req,resp):
+        dir=req.params.get('dir','/')
+        file=req.params.get('file','')
+        dir=dir.replace('.','')
+        filepath='files/'+dir+'/'+file
+        if not os.path.isfile(filepath):
+            # resp.status=404
+            resp.body='(error) file not found'
+        else:
+            with open(filepath,'rb') as file:
+                resp.body=file.read()
+
+
+
+        print(req.params)
+        pass
     def upload(self,req,resp):
+        #
+        # print req.params
+        # return
         file=req.params['file']
         filename=req.params['filename']
         directory=req.params['dir']
