@@ -820,43 +820,23 @@ func (this *Cli) Shell(module string, action string) {
 
 	path := this.conf.ScriptPath + dir
 	if !this.util.IsExist(path) {
-		os.MkdirAll(dir, 0777)
+		os.MkdirAll(path, 0777)
 	}
-
-	req := httplib.Post(this.conf.EnterURL + "/" + this.conf.DefaultModule + "/download")
+	req := httplib.Post(this.conf.EnterURL + "/" + this.conf.DefaultModule + "/shell")
 	req.Param("dir", dir)
 	req.Param("file", file)
 	filepath := path + "/" + file
+	filepath = strings.Replace(filepath, "///", "/", -1)
+	filepath = strings.Replace(filepath, "//", "/", -1)
 	req.ToFile(filepath)
-	conent := this.util.ReadFile(filepath)
-	lines := strings.Split(conent, "\n")
-	ispython := false
-	if len(lines) > 0 {
-		if strings.Index(lines[0], "python") != -1 {
-			ispython = true
-		}
-	}
-
+	os.Chmod(filepath, 0777)
 	result := ""
-
-	if ispython {
-		cmds := []string{
-			"/usr/bin/python",
-		}
-		cmds = append(cmds, os.Args[2:]...)
-		result, _ = this.util.Exec(cmds, 3600)
-
-	} else {
-		cmds := []string{
-			"/bin/bash",
-			"-c",
-		}
-		cmds = append(cmds, os.Args[2:]...)
-		result, _ = this.util.Exec(cmds, 3600)
-
+	cmds := []string{
+		filepath,
 	}
-
-	print(result)
+	cmds = append(cmds, os.Args[4:]...)
+	result, _ = this.util.Exec(cmds, 3600)
+	fmt.Println(result)
 
 }
 
