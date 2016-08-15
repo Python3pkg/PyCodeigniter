@@ -210,7 +210,7 @@ class Cli:
             if puuid=='' or salt=='':
                 return '(error)client not online'
 
-            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt))}),'timeout':timeout }
+            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout)}) }
             data=urllib.urlencode(data)
             req = urllib2.Request(
                     url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
