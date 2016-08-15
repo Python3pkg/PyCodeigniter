@@ -210,7 +210,7 @@ class Cli:
             if puuid=='' or salt=='':
                 return '(error)client not online'
 
-            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt))}) }
+            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt))}),'timeout':timeout }
             data=urllib.urlencode(data)
             req = urllib2.Request(
                     url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
@@ -250,15 +250,15 @@ class Cli:
         return self._userstatus(req.params['param'],0)
     def enableuser(self,req,resp):
         return self._userstatus(req.params['param'],1)
-    def _userstatus(self,req,resp):
-        params=self._params(req.params['param'])
+    def _userstatus(self,param, status):
+        params=self._params(param)
         user=''
         uuid='(error) not login'
         if  'u' in params:
             user=params['u']
         else:
             return '-u(user) require'
-        data={'user':user,'status':params['status']}
+        data={'user':user,'status':status}
         ci.db.query("update user set status='{status}' where user='{user}'",data)
         return 'success'
 
@@ -616,8 +616,8 @@ class Cli:
         return ci.db.scalar("select value_ from env where `group_`='%s' and `key_`='%s'"% (group,key))['value_']
 
 ################################################ doc ###############################################
-    def _checkdoc(self,req,resp):
-        params=self._params(req.params['param'])
+    def _checkdoc(self,param):
+        params=self._params(param)
         id=''
         if 'k' in params:
             id=params['k']

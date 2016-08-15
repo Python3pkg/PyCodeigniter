@@ -826,13 +826,17 @@ class ZbxDaemon(Daemon):
                 cNode=json.loads(cNode['value'])
                 cmd = cNode['cmd'].encode('utf-8')
                 md5 = cNode['md5']
+                if 'timeout' in cNode.keys():
+                    timeout = cNode['timeout']
+                else:
+                    timeout=30
                 if md5==self.util.md5(cmd+self.salt):
 
                     # self.keys.append(key)
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
-                        result = ZbxCommand(cmd).run()
+                        result = ZbxCommand(cmd).run(timeout)
                         #print(type(result))
                         try:
                             result=result.decode('utf-8')

@@ -1,34 +1,29 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	//	"io/ioutil"
-	//	"net/http"
-	"os"
-	"reflect"
-	"regexp"
-	"strings"
-
-	//	"container/list"
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	random "math/rand"
-
-	"os/exec"
-	//	"os/signal"
-	"runtime"
-	//	"strconv"
 	"net"
+	"net/url"
+	"os"
+	"os/exec"
+	"os/user"
+	"reflect"
+	"regexp"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
-	//	"github.com/nareix/curl"
 	"github.com/astaxie/beego/httplib"
 	"github.com/howeyc/gopass"
 	"github.com/sjqzhang/daemon"
@@ -56,11 +51,24 @@ type Config struct {
 
 func NewConfig() *Config {
 
+	server := os.Getenv("CLI_SERVER")
+	EnterURL := "http://172.17.140.116:8006"
+	DefaultModule := "cli"
+
+	if server != "" && strings.HasPrefix(server, "http") {
+		if info, ok := url.Parse(server); ok == nil {
+			if len(info.Path) > 0 {
+				DefaultModule = info.Path[1:]
+			}
+			EnterURL = info.Scheme + "://" + info.Host
+		}
+
+	}
+
 	conf := &Config{
 		//		EnterURL: "http://172.17.140.133:8005",
-		EnterURL: "http://172.17.140.116:8006",
-		//		EnterURL:      "http://172.17.140.133:8081",
-		DefaultModule: "cli",
+		EnterURL:      EnterURL,
+		DefaultModule: DefaultModule,
 		Salt:          "",
 		EtcdConf: &EtcdConf{
 			Prefix: "",
@@ -86,10 +94,60 @@ func (this *Common) GetArgsMap() map[string]string {
 
 }
 
+func (this *Common) Home() (string, error) {
+	user, err := user.Current()
+	if nil == err {
+		return user.HomeDir, nil
+	}
+
+	// cross compile support
+
+	if "windows" == runtime.GOOS {
+		return this.homeWindows()
+	}
+
+	// Unix-like system, so just assume Unix
+	return this.homeUnix()
+}
+
+func (this *Common) homeUnix() (string, error) {
+	// First prefer the HOME environmental variable
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+
+	// If that fails, try the shell
+	var stdout bytes.Buffer
+	cmd := exec.Command("sh", "-c", "eval echo ~$USER")
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	result := strings.TrimSpace(stdout.String())
+	if result == "" {
+		return "", errors.New("blank output when reading home directory")
+	}
+
+	return result, nil
+}
+
+func (this *Common) homeWindows() (string, error) {
+	drive := os.Getenv("HOMEDRIVE")
+	path := os.Getenv("HOMEPATH")
+	home := drive + path
+	if drive == "" || path == "" {
+		home = os.Getenv("USERPROFILE")
+	}
+	if home == "" {
+		return "", errors.New("HOMEDRIVE, HOMEPATH, and USERPROFILE are blank")
+	}
+
+	return home, nil
+}
+
 func (this *Common) GetAllIps() []string {
-
 	ips := []string{}
-
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		panic(err)
@@ -102,10 +160,19 @@ func (this *Common) GetAllIps() []string {
 				ips = append(ips, ip[0:pos])
 			}
 		}
-
 	}
-
 	return ips
+}
+
+func (this *Common) GetLocalIP() string {
+
+	ips := this.GetAllIps()
+	for _, v := range ips {
+		if strings.HasPrefix(v, "10.") || strings.HasPrefix(v, "172.") || strings.HasPrefix(v, "172.") {
+			return v
+		}
+	}
+	return "127.0.0.1"
 
 }
 
@@ -223,7 +290,6 @@ func (this *Common) ReadFile(path string) string {
 	if this.IsExist(path) {
 		fi, err := os.Open(path)
 		if err != nil {
-			//panic(err)
 			return ""
 		}
 		defer fi.Close()
@@ -235,18 +301,26 @@ func (this *Common) ReadFile(path string) string {
 }
 
 func (this *Common) WriteFile(path string, content string) bool {
+	var f *os.File
+	var err error
 	if this.IsExist(path) {
-		fi, err := os.Open(path)
-		if err != nil {
+		f, err = os.OpenFile(path, os.O_RDWR, 0666)
 
+	} else {
+		f, err = os.Create(path)
+
+	}
+	if err == nil {
+		defer f.Close()
+		if _, err = io.WriteString(f, content); err == nil {
+			return true
+		} else {
 			return false
 		}
-		defer fi.Close()
-		fi.WriteString(content)
-		return true
 	} else {
 		return false
 	}
+
 }
 
 func (this *Common) GetProductUUID() string {
@@ -313,8 +387,9 @@ func (this *Common) Exec(cmd []string, timeout int) (string, int) {
 		//			command.Process.Release()
 		//			print(command.Process.Pid)
 		//		}
-		print(command.Process.Kill())
-		print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		print("killed processid", command.Process.Pid)
+		command.Process.Kill()
+
 	})
 
 	err = command.Wait()
@@ -372,10 +447,31 @@ func (this *Common) GetAction(conf *Config) string {
 
 func (this *Common) Request(url string, data map[string]string) string {
 	body := "{}"
+
+	for _, k := range []string{"i", "s"} {
+		if _, ok := data[k]; !ok {
+			switch k {
+			case "i":
+				data[k] = this.GetLocalIP()
+			case "s":
+				data[k], _ = os.Hostname()
+			}
+		}
+
+	}
+
 	if pdata, err := json.Marshal(data); err == nil {
 		body = string(pdata)
 	}
 	req := httplib.Post(url)
+	if dir, ok := this.Home(); ok == nil {
+		filename := dir + "/" + ".cli"
+		uuid := this.ReadFile(filename)
+		if uuid != "" {
+			req.Header("auth-uuid", uuid)
+		}
+	}
+
 	req.Param("param", body)
 	req.SetTimeout(time.Second*10, time.Second*60)
 	str, err := req.String()
@@ -642,11 +738,27 @@ func (this *Cli) Daemon(module string, action string) {
 
 }
 
-func (this *Cli) login(module string, action string) {
+func (this *Cli) Login(module string, action string) {
 
 	user, password := this._UserInfo()
 
-	print(user, password)
+	data := map[string]string{
+		"u": user,
+		"p": password,
+	}
+
+	res := this._Request(this.conf.EnterURL+"/"+this.conf.DefaultModule+"/login", data)
+
+	if dir, ok := this.util.Home(); ok == nil {
+		filename := dir + "/" + ".cli"
+		if this.util.WriteFile(filename, res) {
+			fmt.Println("success")
+		} else {
+			fmt.Println("fail")
+		}
+	}
+
+	//	print(res)
 }
 
 func (this *Cli) _UserInfo() (string, string) {
@@ -670,29 +782,6 @@ func (this *Cli) _UserInfo() (string, string) {
 		}
 	}
 	return user, password
-}
-
-func (this *Cli) Login(module string, action string) {
-	argv := this.util.GetArgsMap()
-	var password string
-	var user string
-	if _user, ok := argv["u"]; ok {
-		user = _user
-	} else {
-		fmt.Println("please input username:")
-		fmt.Scanln(&user)
-	}
-	if _password, ok := argv["p"]; ok {
-		password = _password
-	} else {
-		fmt.Println("please input password:")
-		_password, er := gopass.GetPasswd()
-		if er != nil {
-		} else {
-			password = string(_password)
-		}
-	}
-	print(user, password)
 }
 
 func (this *Cli) Logout(module string, action string) {
@@ -791,6 +880,28 @@ func (this *Cli) Upload(module string, action string) {
 	} else {
 		fmt.Println("-f(filename) is required")
 	}
+
+}
+
+func (this *Cli) Adddoc(module string, action string) {
+
+	argv := this.util.GetArgsMap()
+	if file, ok := argv["f"]; ok {
+		argv["d"] = this.util.ReadFile(file)
+	}
+	res := this._Request(this.conf.EnterURL+"/"+this.conf.DefaultModule+"/adddoc", argv)
+	fmt.Println(res)
+
+}
+
+func (this *Cli) Rexec(module string, action string) {
+	user, password := this._UserInfo()
+	data := map[string]string{
+		"u": user,
+		"p": password,
+	}
+	res := this._Request(this.conf.EnterURL+"/"+this.conf.DefaultModule+"/rexec", data)
+	fmt.Println(res)
 
 }
 
@@ -899,6 +1010,7 @@ func init() {
 
 	stdlog = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Llongfile)
 	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
+
 }
 
 func main() {
@@ -946,6 +1058,8 @@ func main() {
 	//	print(action)
 
 	//	cli.Heartbeat()
+
+	//	print(util.Home())
 
 	for i := 0; i < obj.NumMethod(); i++ {
 		if obj.MethodByName(strings.Title(action)).IsValid() {
