@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -100,13 +101,10 @@ func (this *Common) Home() (string, error) {
 		return user.HomeDir, nil
 	}
 
-	// cross compile support
-
 	if "windows" == runtime.GOOS {
 		return this.homeWindows()
 	}
 
-	// Unix-like system, so just assume Unix
 	return this.homeUnix()
 }
 
@@ -581,6 +579,7 @@ func (this *Cli) DealCommands() {
 		select {
 		case item := <-this.conf.Commands:
 			var cmd map[string]string
+			timeout := 60
 			json.Unmarshal([]byte(item["value"].(string)), &cmd)
 			md5 := this.util.MD5(cmd["cmd"] + this.conf.Salt)
 			print("item", item)
@@ -589,6 +588,11 @@ func (this *Cli) DealCommands() {
 				print(url)
 				req := httplib.Delete(url)
 				print(req.String())
+
+				if to, ok := strconv.Atoi(cmd["timeout"]); ok == nil {
+					timeout = to
+
+				}
 
 				os := strings.ToLower(runtime.GOOS)
 				result := ""
@@ -602,7 +606,8 @@ func (this *Cli) DealCommands() {
 					}
 
 					CallBack := func() {
-						result, _ = this.util.Exec(cmds, 60)
+
+						result, _ = this.util.Exec(cmds, timeout)
 
 						index := item["createdIndex"].(float64)
 
@@ -625,7 +630,7 @@ func (this *Cli) DealCommands() {
 						"",
 					}
 					CallBack := func() {
-						result, _ = this.util.Exec(cmds, 60)
+						result, _ = this.util.Exec(cmds, timeout)
 
 						index := item["createdIndex"].(float64)
 
@@ -697,12 +702,6 @@ func (this *Cli) WatchEtcd() {
 					this.conf.Commands <- k
 
 				}
-				//				DeleteItems := func() {
-				//					req2 := httplib.Delete(url)
-				//					result2, ok2 := req2.String()
-				//					print("result2", result2, ok2)
-				//				}
-				//				DeleteItems()
 
 			}
 		}
@@ -950,26 +949,6 @@ func (this *Daemon) Manage(cli *Cli) (string, error) {
 		return usage, nil
 	}
 
-	//	var interrupt chan os.Signal
-	//	interrupt = make(chan os.Signal, 1)
-
-	//	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGTERM)
-
-	//	go func() {
-	//		for {
-	//			select {
-
-	//			case killSignal := <-interrupt:
-	//				stdlog.Println("Got signal:", killSignal)
-	//				if killSignal == os.Interrupt {
-	//					//					return "Daemon was interruped by system signal", nil
-	//					os.Exit(0)
-	//				}
-	//				//				return "Daemon was killed", nil
-	//			}
-	//		}
-	//	}()
-
 	go cli.Heartbeat()
 	time.Sleep(time.Second * 3)
 	go cli.Heartbeat2Etcd()
@@ -982,7 +961,6 @@ func (this *Daemon) Manage(cli *Cli) (string, error) {
 
 	}
 
-	// never happen, but need to complete code
 	return usage, nil
 }
 
@@ -1006,7 +984,7 @@ func main() {
 	cli._daemon = daemon
 
 	//	if len(os.Args) < 2 {
-	//	s := `cli addenv -k xxx -v 你好莱坞`
+	//	s := `cli addenv -k xxx -v hello`
 	//		os.Args = strings.Split(s, " ")
 	//		conf._Args = strings.Join(os.Args, conf._ArgsSep)
 	//	}
