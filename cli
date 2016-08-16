@@ -447,7 +447,9 @@ class ZbxCommon(object):
         return ''.join(ret)
 
     def get_product_uuid(self):
-        product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
+        product_uuid=''
+        if os.path.isfile('/sys/devices/virtual/dmi/id/product_uuid'):
+            product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
         if product_uuid=="":
             uuid_file='/etc/uuid'
             if not os.path.exists(uuid_file):
