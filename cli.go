@@ -488,6 +488,13 @@ func (this *Cli) Default(module string, action string) {
 	data := this.util.GetArgsMap()
 	resp := this._Request(this.conf.EnterURL+"/"+module+"/"+action, data)
 
+	var v interface{}
+	if ok := json.Unmarshal([]byte(resp), &v); ok == nil {
+		if buf, ok := json.MarshalIndent(v, "", "  "); ok == nil {
+			resp = string(buf)
+		}
+	}
+
 	fmt.Println(resp)
 }
 
