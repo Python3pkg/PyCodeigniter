@@ -752,9 +752,13 @@ func (this *Cli) Login(module string, action string) {
 	if dir, ok := this.util.Home(); ok == nil {
 		filename := dir + "/" + ".cli"
 		if this.util.WriteFile(filename, res) {
-			fmt.Println("success")
+			if len(res) == 36 {
+				fmt.Println("success")
+			} else {
+				fmt.Println(res)
+			}
 		} else {
-			fmt.Println("fail")
+			fmt.Println(res)
 		}
 	}
 
