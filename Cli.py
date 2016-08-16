@@ -50,9 +50,6 @@ class HeartBeat(object):
             # chkthread.start()
 
 
-
-
-
     def set_online(self,product_uuid,data):
         for d in self.data:
             if d['uuid']==product_uuid:
@@ -70,6 +67,17 @@ class HeartBeat(object):
                 time.sleep(60*2)
             except Exception as er:
                 pass
+
+
+    def status(self):
+        result={'offline':0,'online':0,'count':0}
+        for d in self.data:
+            result['count']= result['count']+1
+            if d['status']=='offline':
+                result['offline']=result['offline']+1
+            elif  d['status']=='online':
+                result['online']=result['online']+1
+        return  result
 
     def getetcd(self,param):
         return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
@@ -170,6 +178,8 @@ class Cli:
         params=self._params(req.params['param'])
         return self.hb.heartbeat(params)
 
+    def status(self,req,resp):
+        return self.hb.status()
 
     def dump_heartbeat(self,req,resp):
         self.hb.dump_data()
