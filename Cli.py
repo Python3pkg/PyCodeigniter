@@ -79,6 +79,22 @@ class HeartBeat(object):
                 result['online']=result['online']+1
         return  result
 
+
+    def offline(self):
+        result=[]
+        for d in self.data:
+            if d['status']=='offline':
+                result.append(d)
+        return  result
+
+    def online(self):
+        result=[]
+        for d in self.data:
+            if d['status']=='online':
+                result.append(d)
+        return  result
+
+
     def getetcd(self,param):
         return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.3:4001'],'prefix  ':'/keeper'}
@@ -180,6 +196,12 @@ class Cli:
 
     def status(self,req,resp):
         return self.hb.status()
+
+    def offline(self,req,resp):
+        return self.hb.offline()
+
+    def online(self,req,resp):
+        return self.hb.online()
 
     def dump_heartbeat(self,req,resp):
         self.hb.dump_data()

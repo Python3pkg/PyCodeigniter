@@ -653,6 +653,11 @@ server_url=http://127.0.0.1:8005
             #if not 't' in argv:
             #    argv['t']="Meizu-System"
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)})
+        if ret.strip()!='':
+            try:
+                ret=json.dumps(json.loads(ret),sort_keys=True,indent=2)
+            except Exception as er:
+                pass
         print(ret)
         return ret
 
