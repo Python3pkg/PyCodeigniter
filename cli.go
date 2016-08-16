@@ -53,7 +53,7 @@ type Config struct {
 func NewConfig() *Config {
 
 	server := os.Getenv("CLI_SERVER")
-	EnterURL := "http://172.17.140.116:8006"
+	EnterURL := "http://127.0.0.1:8005"
 	DefaultModule := "cli"
 
 	if server != "" && strings.HasPrefix(server, "http") {
@@ -370,7 +370,7 @@ func (this *Common) Exec(cmd []string, timeout int) (string, int) {
 	duration := time.Duration(timeout) * time.Second
 
 	command := exec.Command(cmd[0], cmd[1:]...)
-	//	command.Stdin = os.Stdin
+	command.Stdin = os.Stdin
 	command.Stdout = &out
 	command.Stderr = &out
 
@@ -403,7 +403,6 @@ func (this *Common) Exec(cmd []string, timeout int) (string, int) {
 		}
 	} else if err != nil {
 		if command.ProcessState == nil {
-			//			die2(fmt.Sprintf("[timeout] Error occured: %v", err), 127)
 		}
 		status = command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 	} else {
@@ -558,7 +557,6 @@ func (this *Cli) Heartbeat2Etcd() {
 			req.Param("ttl", "300")
 			req.Param("value", strings.Join(ips, ","))
 			req.String()
-			//				print(req.String())
 
 		} else {
 			print("Error Etcd Config")
@@ -679,8 +677,6 @@ func (this *Cli) WatchEtcd() {
 
 	}
 
-	//	go DealCommands()
-
 	DealWithData := func() {
 
 		url := GetNodeURL()
@@ -721,8 +717,6 @@ func (this *Cli) WatchEtcd() {
 
 			}
 		}
-
-		//		time.Sleep(time.Second * 5)
 
 	}
 
@@ -983,41 +977,8 @@ func main() {
 	daemon := &Daemon{_daemon}
 	cli._daemon = daemon
 
-	//	if len(os.Args) < 2 {
-	//	s := `cli addenv -k xxx -v hello`
-	//		os.Args = strings.Split(s, " ")
-	//		conf._Args = strings.Join(os.Args, conf._ArgsSep)
-	//	}
-
-	// ********************************** //
-
-	//	header := map[string]string{
-	//		"a": "abc",
-	//		"b": "def",
-	//	}
-
-	//	if a, ok := header["c"]; ok {
-	//		print("xxxx")
-	//		print(a)
-	//	} else {
-	//		print(ok)
-	//	}
-
-	//	print(random.Intn(100))
-
-	// ********************************** //
-
 	module := util.GetModule(conf)
 	action := util.GetAction(conf)
-
-	//	print(util.GetAllIps())
-
-	//	print(module)
-	//	print(action)
-
-	//	cli.Heartbeat()
-
-	//	print(util.Home())
 
 	for i := 0; i < obj.NumMethod(); i++ {
 		if obj.MethodByName(strings.Title(action)).IsValid() {
