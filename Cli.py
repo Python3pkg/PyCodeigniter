@@ -80,6 +80,7 @@ class HeartBeat(object):
         return  result
 
 
+    @auth
     def offline(self):
         result=[]
         for d in self.data:
@@ -87,6 +88,7 @@ class HeartBeat(object):
                 result.append(d)
         return  result
 
+    @auth
     def online(self):
         result=[]
         for d in self.data:
@@ -124,7 +126,7 @@ class HeartBeat(object):
 
 
     def get_product_uuid(self,ip):
-        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s)"% (ip))
+        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s) or (uuid=%s)"% (ip,ip))
         return objs
 
     def load_data(self):
