@@ -614,12 +614,12 @@ func (this *Cli) DealCommands() {
 
 						result, _ = this.util.Exec(cmds, timeout)
 
-						index := item["createdIndex"].(float64)
+						index := item["createdIndex"]
 
 						data := map[string]string{
 							"result": result,
 							"ip":     "",
-							"index":  fmt.Sprint("", index),
+							"index":  fmt.Sprintf("%0.0f", index),
 						}
 
 						this._Request(this.conf.EnterURL+"/"+this.conf.DefaultModule+"/feedback_result", data)
@@ -637,12 +637,12 @@ func (this *Cli) DealCommands() {
 					CallBack := func() {
 						result, _ = this.util.Exec(cmds, timeout)
 
-						index := item["createdIndex"].(float64)
+						index := item["createdIndex"]
 
 						data := map[string]string{
 							"result": result,
 							"ip":     "",
-							"index":  fmt.Sprint("", index),
+							"index":  fmt.Sprintf("%0.0f", index),
 						}
 
 						this._Request(this.conf.EnterURL+"/"+this.conf.DefaultModule+"/feedback_result", data)
@@ -840,6 +840,32 @@ func (this *Cli) Shell(module string, action string) {
 
 }
 
+func (this *Cli) Download(module string, action string) {
+	argv := this.util.GetArgsMap()
+	if filename, ok := argv["f"]; ok {
+		var dir string
+		var des string
+		if d, ok := argv["d"]; ok {
+			dir = d
+		} else {
+			dir = "/"
+		}
+		if _d, ok := argv["o"]; ok {
+			des = _d
+		} else {
+			des = filename
+		}
+		req := httplib.Post(this.conf.EnterURL + "/" + this.conf.DefaultModule + "/download")
+		req.Param("file", argv["f"])
+		req.Param("dir", dir)
+		req.ToFile(des)
+
+	} else {
+		fmt.Println("-f(filename) is required")
+	}
+
+}
+
 func (this *Cli) Upload(module string, action string) {
 	argv := this.util.GetArgsMap()
 	if filename, ok := argv["f"]; ok {
@@ -849,7 +875,12 @@ func (this *Cli) Upload(module string, action string) {
 		}
 		req := httplib.Post(this.conf.EnterURL + "/" + this.conf.DefaultModule + "/upload")
 		req.PostFile("file", filename)
-		req.Param("filename", filename)
+
+		if pos := strings.LastIndex(filename, "/"); pos != -1 && !strings.HasSuffix(filename, "/") {
+			req.Param("filename", filename[pos+1:])
+		} else {
+			req.Param("filename", filename)
+		}
 		req.Param("dir", dir)
 		str, err := req.String()
 		if err != nil {
@@ -969,6 +1000,19 @@ func init() {
 
 	stdlog = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Llongfile)
 	errlog = log.New(os.Stderr, "", log.Ldate|log.Ltime)
+
+}
+
+func test() {
+
+	var v float64
+	v = 69739179
+
+	a := fmt.Sprintf("%0.0f", v)
+
+	//	fmt.Println(strconv.Atoi(a))
+
+	fmt.Println(a)
 
 }
 
