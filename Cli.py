@@ -60,16 +60,20 @@ class HeartBeat(object):
     def check_online(self):
         while True:
             try:
-                now=int(time.time())
-                for d in self.data:
-                    if now-d['utime']>60*10:
-                        d['status']='offline'
+                self.check_status()
                 time.sleep(60*2)
             except Exception as er:
                 pass
 
 
+    def check_status(self):
+        now=int(time.time())
+        for d in self.data:
+            if now-d['utime']>60*10:
+                d['status']='offline'
+
     def status(self):
+        self.check_status()
         result={'offline':0,'online':0,'count':0}
         for d in self.data:
             result['count']= result['count']+1
@@ -87,7 +91,6 @@ class HeartBeat(object):
             if d['status']=='offline':
                 result.append(d)
         return  result
-
     @auth
     def online(self):
         result=[]

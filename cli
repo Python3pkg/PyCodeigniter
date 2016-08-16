@@ -832,7 +832,7 @@ class ZbxDaemon(Daemon):
                 cmd = cNode['cmd'].encode('utf-8')
                 md5 = cNode['md5']
                 if 'timeout' in cNode.keys():
-                    timeout = cNode['timeout']
+                    timeout = int(cNode['timeout'])
                 else:
                     timeout=30
                 if md5==self.util.md5(cmd+self.salt):
@@ -841,7 +841,7 @@ class ZbxDaemon(Daemon):
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
-                        result = ZbxCommand(cmd).run(timeout)
+                        result = ZbxCommand(cmd).run(int(timeout))
                         #print(type(result))
                         try:
                             result=result.decode('utf-8')
