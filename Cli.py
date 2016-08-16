@@ -423,9 +423,11 @@ class Cli:
         # return
         file=req.params['file']
         filename=req.params['filename']
-        directory=req.params['dir']
+        directory=req.params.get('dir','/')
         directory=directory.replace('.','')
         path='files/'+directory
+        path=path.replace('///','/')
+        path=path.replace('//','/')
         filename=path+'/'+filename
         if not os.path.isdir(path):
             os.mkdir(path)
