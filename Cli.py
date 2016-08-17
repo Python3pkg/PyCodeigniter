@@ -72,6 +72,8 @@ class HeartBeat(object):
             if now-d['utime']>60*10:
                 d['status']='offline'
 
+
+
     def status(self):
         self.check_status()
         result={'offline':0,'online':0,'count':0}
@@ -107,6 +109,10 @@ class HeartBeat(object):
 
     # @cache.Cache()
     def heartbeat(self,params):
+        status=''
+        if 'status'  in params.keys():
+            status=params['status']
+
         if 'uuid' not in params.keys():
             return '(error) invalid request'
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%params['uuid'])
@@ -114,18 +120,22 @@ class HeartBeat(object):
         salt= str(ci.uuid())
         utime=int(time.time())
         if objs==None or len(objs)==0:
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online'}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.data.append(param)
             self.set_online(params['uuid'],param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online'}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.set_online(params['uuid'],param)
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
         etcd=self.getetcd(params)
-        return {'etcd':etcd, 'salt':salt}
+
+        if status!='':
+            return {'etcd':etcd, 'salt':salt}
+        else:
+            return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
 
 
     def get_product_uuid(self,ip):
@@ -141,6 +151,18 @@ class HeartBeat(object):
         with open(self.filename,'w+') as file:
             file.write(json.dumps(self.data))
 
+    def shellstr(self):
+        shell='''
+#!/bin/sh
+disk=`df | awk 'BEGIN{total=0;avl=0;used=0;}NR > 1{total+=$2;used+=$3;avl+=$4;}END{printf"%d", used/total*100}'`
+mem=`top -b -n 1 | grep -w Mem | awk '{printf"%d",$4/$2*100}'`
+cpu=`top -b -n 1 | grep -w Cpu | awk '{print$5}' | awk -F '%' '{printf"%d",$1}'`
+cpu=$((100-$cpu))
+net=`ss -s |grep -w 'Total:'|awk '{print $2}'`
+iowait=`top -n 1 -b  |grep -w 'Cpu' |awk '{print $6}'|awk -F '%' '{print $1}'`
+echo "cpu:"$cpu" disk:"$disk" mem:"$mem" net:"$net "iowait:"$iowait
+        '''
+        return shell
 
 class Cli:
 
@@ -211,6 +233,8 @@ class Cli:
     def dump_heartbeat(self,req,resp):
         self.hb.dump_data()
         return 'ok'
+
+
 
 
     def cmd(self,req,resp):

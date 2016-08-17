@@ -45,6 +45,7 @@ type Config struct {
 	Salt          string
 	Args          []string
 	EtcdConf      *EtcdConf
+	ShellStr      string
 	Commands      chan map[string]interface{}
 	_Args         string
 	_ArgsSep      string
@@ -67,7 +68,6 @@ func NewConfig() *Config {
 	}
 
 	conf := &Config{
-		//		EnterURL: "http://172.17.140.133:8005",
 		EnterURL:      EnterURL,
 		DefaultModule: DefaultModule,
 		Salt:          "",
@@ -77,6 +77,7 @@ func NewConfig() *Config {
 		},
 		ScriptPath:    "/tmp/script/",
 		DefaultAction: "help",
+		ShellStr:      "",
 		Commands:      make(chan map[string]interface{}, 1000),
 		Args:          os.Args,
 		_ArgsSep:      "$$$$",
@@ -517,9 +518,27 @@ func (this *Cli) Request(url string, data map[string]string) {
 func (this *Cli) Heartbeat() {
 
 	for {
-		data := map[string]string{
-			"ips":  strings.Join(this.util.GetAllIps(), ","),
-			"uuid": this.util.GetProductUUID(),
+		cmds := []string{
+			"/bin/bash",
+			"-c",
+			this.conf.ShellStr,
+		}
+		var data map[string]string
+		if this.conf.ShellStr == "" {
+			data = map[string]string{
+				"ips":      strings.Join(this.util.GetAllIps(), ","),
+				"uuid":     this.util.GetProductUUID(),
+				"status":   "",
+				"platform": strings.ToLower(runtime.GOOS),
+			}
+		} else {
+			statusstr, _ := this.util.Exec(cmds, 5)
+			data = map[string]string{
+				"ips":      strings.Join(this.util.GetAllIps(), ","),
+				"uuid":     this.util.GetProductUUID(),
+				"status":   statusstr,
+				"platform": strings.ToLower(runtime.GOOS),
+			}
 		}
 
 		url := this.conf.EnterURL + "/" + this.conf.DefaultModule + "/" + "heartbeat"
@@ -529,6 +548,10 @@ func (this *Cli) Heartbeat() {
 		ok := json.Unmarshal([]byte(heartbeats), &js)
 		if ok == nil {
 			this.conf.Salt = js["salt"].(string)
+			if _, o := js["shell"]; o {
+				this.conf.ShellStr = js["shell"].(string)
+
+			}
 			server := this.util.JsonEncode(js["etcd"])
 			var etcd EtcdConf
 			json.Unmarshal([]byte(server), &etcd)
@@ -536,11 +559,11 @@ func (this *Cli) Heartbeat() {
 
 			print(this.conf.EtcdConf.Server)
 
+		} else {
+
 		}
 		r := random.New(random.NewSource(time.Now().UnixNano()))
 		interval := time.Duration(60 + r.Intn(60))
-
-		print("interval", interval)
 
 		time.Sleep(interval * time.Second)
 	}
@@ -721,6 +744,10 @@ func (this *Cli) WatchEtcd() {
 			if ok == nil {
 
 				DealWithData()
+
+			} else {
+
+				time.Sleep(time.Second * 3)
 
 			}
 		}

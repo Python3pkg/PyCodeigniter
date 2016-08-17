@@ -68,6 +68,7 @@ class Daemon(object):
                 self.stderr = stderr
                 self.pidfile = pidfile
                 self.salt=''
+                self.shellstr=''
 
         def daemonize(self):
                 """
@@ -755,13 +756,20 @@ class ZbxDaemon(Daemon):
             # time.sleep(5)
             # return self.get_etcd()
 
+    def status(self):
+        return self.util.execute(self.shellstr)
+
     def heartbeat2server(self):
         try:
             ips=",".join(self.util.get_all_ip_list())
-            ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips])
+            ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips,'--status', self.status(),'--platform',platform.system().lower() ])
             objs= json.loads(ret)
             self.salt=objs['salt']
             self.etcd_conf=objs['etcd']
+            if 'shell' in objs.keys():
+                self.shellstr=objs['shell']
+                # print self.util.execute(self.shellstr)
+
             self.etcd_list=objs['etcd']['server']
             self.etcd_prefix=objs['etcd']['prefix']
             print('salt',self.salt)
