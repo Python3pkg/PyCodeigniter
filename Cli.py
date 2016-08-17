@@ -157,8 +157,7 @@ class HeartBeat(object):
 #!/bin/sh
 disk=`df | awk 'BEGIN{total=0;avl=0;used=0;}NR > 1{total+=$2;used+=$3;avl+=$4;}END{printf"%d", used/total*100}'`
 mem=`top -b -d 1 -n 2 | grep -w Mem | awk 'END{printf"%d",$4/$2*100}'`
-cpu=`top -b -n 2 -d 1 | grep -w Cpu | awk -F ',' '{print$4}' | awk -F '%' 'END{printf"%d",$1}'`
-cpu=$((100-$cpu))
+cpu=`top -b -n 2 -d 1 | grep -w Cpu |awk -F ',|  ' 'END{print $2+$3}'`
 net=`ss -s |grep -w 'Total:'|awk '{print $2}'`
 iowait=`top -n 2 -b -d 1  |grep -w 'Cpu' |awk '{print $6}'|awk -F '%' 'END {print $1}'`
 load=`top -n 2 -d 1  -b |grep -w average: |awk -F',' 'END{printf"%3.2f",$5}'`
