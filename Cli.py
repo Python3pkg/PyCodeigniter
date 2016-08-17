@@ -103,6 +103,7 @@ class HeartBeat(object):
 
 
     def getetcd(self,param):
+        return {'server':['10.3.155.104:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.3:4001'],'prefix  ':'/keeper'}
 
@@ -111,7 +112,7 @@ class HeartBeat(object):
     def heartbeat(self,params):
         status=''
         if 'status'  in params.keys():
-            status=params['status']
+            status=params['status'].strip()
 
         if 'uuid' not in params.keys():
             return '(error) invalid request'
@@ -156,7 +157,7 @@ class HeartBeat(object):
 #!/bin/sh
 disk=`df | awk 'BEGIN{total=0;avl=0;used=0;}NR > 1{total+=$2;used+=$3;avl+=$4;}END{printf"%d", used/total*100}'`
 mem=`top -b -n 1 | grep -w Mem | awk '{printf"%d",$4/$2*100}'`
-cpu=`top -b -n 1 | grep -w Cpu | awk '{print$5}' | awk -F '%' '{printf"%d",$1}'`
+cpu=`top -b -n 1 | grep -w Cpu | awk -F ',' '{print$5}' | awk -F '%' '{printf"%d",$1}'`
 cpu=$((100-$cpu))
 net=`ss -s |grep -w 'Total:'|awk '{print $2}'`
 iowait=`top -n 1 -b  |grep -w 'Cpu' |awk '{print $6}'|awk -F '%' '{print $1}'`
