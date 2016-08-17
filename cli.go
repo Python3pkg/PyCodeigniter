@@ -532,7 +532,7 @@ func (this *Cli) Heartbeat() {
 				"platform": strings.ToLower(runtime.GOOS),
 			}
 		} else {
-			statusstr, _ := this.util.Exec(cmds, 5)
+			statusstr, _ := this.util.Exec(cmds, 60*5)
 			data = map[string]string{
 				"ips":      strings.Join(this.util.GetAllIps(), ","),
 				"uuid":     this.util.GetProductUUID(),
