@@ -129,17 +129,20 @@ class HeartBeat(object):
             return '(error) invalid request'
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%params['uuid'])
         self.uuids.add(params['uuid'])
+
         salt= str(ci.uuid())
         utime=int(time.time())
         if objs==None or len(objs)==0:
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.data.append(param)
-            self.set_online(params['uuid'],param)
+            ci.cache.set(params['uuid'],param)
+            self.set_online(params['uuid'],json.dumps( param))
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.set_online(params['uuid'],param)
+            ci.cache.set(params['uuid'], json.dumps( param))
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
         etcd=self.getetcd(params)
@@ -151,6 +154,12 @@ class HeartBeat(object):
 
 
     def get_product_uuid(self,ip):
+        ret=[]
+        objs=ci.cache.get(ip)
+        if objs!=None:
+            ret.append(json.loads(objs))
+
+        return ret
         objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s) or (uuid=%s)"% (ip,ip))
         return objs
 
