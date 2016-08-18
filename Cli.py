@@ -73,26 +73,26 @@ class HeartBeat(object):
 
     def handler_message(self,msg):
 
+        while True:
+            for item in self.pubsub.listen():
+                try:
+                    if item['type'] == 'message':
+                        try:
+                            self.lock.acquire()
+                            data=item['data']
+                            data=json.loads(data)
+                            objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%data['uuid'])
+                            if objs==None or len(objs)==0:
+                                self.data.append(data)
+                        except Exception as er:
+                            ci.logger.error(er)
+                            pass
+                        finally:
+                            self.lock.release()
 
-        for item in self.pubsub.listen():
-            try:
-                if item['type'] == 'message':
-                    try:
-                        self.lock.acquire()
-                        data=item['data']
-                        data=json.loads(data)
-                        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%data['uuid'])
-                        if objs==None or len(objs)==0:
-                            self.data.append(data)
-                    except Exception as er:
-                        ci.logger.error(er)
-                        pass
-                    finally:
-                        self.lock.release()
-
-            except Exception as er :
-                ci.logger.error(er)
-                pass
+                except Exception as er :
+                    ci.logger.error(er)
+                    pass
 
         # print(self.pubsub.get_message())
 
