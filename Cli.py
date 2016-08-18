@@ -68,8 +68,11 @@ class HeartBeat(object):
     @auth
     def confirm_offline(self):
         self.check_status()
-        for i,v in enumerate(self.data):
-            del self.data[i]
+        result=[]
+        for d in self.data:
+            if d['status']=='online':
+                result.append(d)
+        self.data=result
         self.dump_data()
         return 'ok'
 
