@@ -65,6 +65,14 @@ class HeartBeat(object):
             except Exception as er:
                 pass
 
+    @auth
+    def confirm_offline(self):
+        self.check_status()
+        for i,v in enumerate(self.data):
+            del self.data[i]
+        self.dump_data()
+        return 'ok'
+
 
     def check_status(self):
         now=int(time.time())
@@ -174,6 +182,8 @@ class Cli:
 
 
 
+
+
     @auth
     def index(self,req,resp):
         # print ci.local.env
@@ -214,7 +224,8 @@ class Cli:
         param=req.params['param']
         data=json.loads(param)
         if 'index' in data.keys() and str(data['index']) in self.cmdkeys.keys():
-            self.cmdkeys[str(data['index'])]=data['result']
+            # self.cmdkeys[str(data['index'])]=data['result']
+            self.cache.set(str(data['index']),data['result'])
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
@@ -236,6 +247,8 @@ class Cli:
         return 'ok'
 
 
+    def confirm_offline(self,req,resp):
+        return self.hb.confirm_offline()
 
 
     def cmd(self,req,resp):
@@ -292,10 +305,19 @@ class Cli:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
                         break
                     else:
-                        time.sleep(0.1)
-                if self.cmdkeys[index]!='':
-                    ret=self.cmdkeys[index]
-                    del self.cmdkeys[index]
+                        # time.sleep(0.1)
+                        # if self.cmdkeys[index]!='':
+                        #     ret=self.cmdkeys[index]
+                        #     del self.cmdkeys[index]
+
+                        time.sleep(1)
+                        ret=ci.cache.get(index)
+                        if ret!='' and ret!=None:
+                            ci.cache.delete(index)
+
+
+
+
                     return ret.encode('utf-8')
                 return '(success) submit command success'
             else:
