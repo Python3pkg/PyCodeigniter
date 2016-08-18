@@ -43,11 +43,25 @@ class HeartBeat(object):
         self.data=[]# {'uuid','status','utime','salt','ips'}
         self.load_data()
         self.uuids=set()
+
+        self.pubsub=None
+
+        if ci.redis!=None:
+            self.pubsub=ci.redis.pubsub()
+            self.pubsub.subscribe(**{'my-channel': self.handler_message})
         if not self._singleton:
             chkthread=threading.Thread(target=self.check_online)
             chkthread.setDaemon(True)
             self._singleton=True
             # chkthread.start()
+
+
+    def handler_message(self,message):
+        print(message)
+        # print(self.pubsub.get_message())
+
+
+
 
 
     def set_online(self,product_uuid,data):
@@ -135,13 +149,15 @@ class HeartBeat(object):
         if objs==None or len(objs)==0:
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.data.append(param)
-            ci.cache.set(params['uuid'],param)
-            self.set_online(params['uuid'],json.dumps( param))
+            ci.cache.set(params['uuid'],json.dumps(param))
+            ci.redis.publish('my-channel',json.dumps(param))
+            self.set_online(params['uuid'], param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
             self.set_online(params['uuid'],param)
+            ci.redis.publish('my-channel',json.dumps(param))
             ci.cache.set(params['uuid'], json.dumps( param))
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
@@ -326,11 +342,7 @@ class Cli:
                         ret=ci.cache.get(index)
                         if ret!='' and ret!=None:
                             ci.cache.delete(index)
-
-
-
-
-                    return ret.encode('utf-8')
+                            return ret.encode('utf-8')
                 return '(success) submit command success'
             else:
                 return '(unsafe) submit command success '
