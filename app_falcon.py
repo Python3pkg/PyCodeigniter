@@ -17,9 +17,6 @@ class MultipartMiddleware(object):
                            keep_blank_values=keep_blank_values)
 
     def process_request(self, req, resp, **kwargs):
-
-        if not req.content_type in  ['multipart/form-data','application/x-www-form-urlencoded']:
-            return
         form = self.parse(stream=req.env['wsgi.input'], environ=req.env)
         for key in form:
             field = form[key]
