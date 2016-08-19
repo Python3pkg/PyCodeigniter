@@ -75,6 +75,12 @@ class HeartBeat(object):
 
 
     def check_status(self):
+        uuids=ci.redis.smembers("uuids")
+        p=ci.redis.pipeline()
+        for i in uuids:
+            p.get(i)
+        self.data= map(lambda x:json.loads(x),p.execute())
+
         now=int(time.time())
         for d in self.data:
             if now-d['utime']>60*10:
@@ -82,13 +88,10 @@ class HeartBeat(object):
 
 
 
+
     def status(self):
 
-        uuids=ci.redis.smembers("uuids")
-        p=ci.redis.pipeline()
-        for i in uuids:
-            p.get(i)
-        self.data= map(lambda x:json.loads(x),p.execute())
+
 
         self.check_status()
         result={'offline':0,'online':0,'count':0}
@@ -103,6 +106,7 @@ class HeartBeat(object):
 
     @auth
     def offline(self):
+        self.check_status()
         result=[]
         for d in self.data:
             if d['status']=='offline':
@@ -110,6 +114,7 @@ class HeartBeat(object):
         return  result
     @auth
     def online(self):
+        self.check_status()
         result=[]
         for d in self.data:
             if d['status']=='online':
@@ -281,7 +286,7 @@ class Cli:
         data=json.loads(param)
         if 'index' in data.keys() and str(data['index']) in ci.redis.smembers("indexs"):
             # self.cmdkeys[str(data['index'])]=data['result']
-            ci.redis.set(str(data['index']),5,data['result'])
+            ci.redis.setex(str(data['index']),5,data['result'])
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
@@ -331,12 +336,14 @@ class Cli:
             objs=self.hb.get_product_uuid(ip)
             salt=''
             puuid=''
+            print(objs)
             if objs==None  or len(objs)==0:
                 return '(error) invalid ip'
             elif len(objs)==1:
                 puuid=objs[0]['uuid']
                 salt=objs[0]['salt']
-                if objs[0]['status']=='offline':
+                now=int(time.time())
+                if objs[0]['status']=='offline' or  now-objs[0]['utime']>60*10:
                     return '(error) client status offline'
             elif len(objs)>1:
                 return '(error) too many ip matched'
