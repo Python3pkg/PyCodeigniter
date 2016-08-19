@@ -83,6 +83,13 @@ class HeartBeat(object):
 
 
     def status(self):
+
+        uuids=ci.redis.smembers("uuids")
+        p=ci.redis.pipeline()
+        for i in uuids:
+            p.get(i)
+        self.data= map(lambda x:json.loads(x),p.execute())
+
         self.check_status()
         result={'offline':0,'online':0,'count':0}
         for d in self.data:
@@ -116,6 +123,7 @@ class HeartBeat(object):
         return {'server':['172.16.119.3:4001'],'prefix  ':'/keeper'}
 
 
+
     # @cache.Cache()
     def heartbeat(self,params):
         status=''
@@ -124,15 +132,16 @@ class HeartBeat(object):
 
         if 'uuid' not in params.keys():
             return '(error) invalid request'
-        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="uuid=%s"%params['uuid'])
-        self.uuids.add(params['uuid'])
+        objs=self.get_product_uuid(params['uuid'])
+        # self.uuids.add(params['uuid'])
+        ci.redis.sadd('uuids',params['uuid'])
 
         salt= str(ci.uuid())
         utime=int(time.time())
 
         if objs==None or len(objs)==0:
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
-            self.data.append(param)
+            # self.data.append(param)
             ci.cache.set(params['uuid'],json.dumps(param))
             self.set_online(params['uuid'], param)
         elif len(objs)==1:
@@ -151,6 +160,41 @@ class HeartBeat(object):
             return {'etcd':etcd, 'salt':salt}
         else:
             return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
+
+    #
+    # # @cache.Cache()
+    # def heartbeat2(self,params):
+    #     status=''
+    #     if 'status'  in params.keys():
+    #         status=params['status'].strip()
+    #
+    #     if 'uuid' not in params.keys():
+    #         return '(error) invalid request'
+    #     objs=self.get_product_uuid(params['uuid'])
+    #     self.uuids.add(params['uuid'])
+    #     salt= str(ci.uuid())
+    #     utime=int(time.time())
+    #     if objs==None or len(objs)==0:
+    #         param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
+    #         # self.data.append(param)
+    #         ci.cache.set(params['uuid'],json.dumps(param))
+    #         self.set_online(params['uuid'], param)
+    #     elif len(objs)==1:
+    #         if 'salt' in objs[0].keys():
+    #             salt=objs[0]['salt']
+    #         param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
+    #         self.set_online(params['uuid'],param)
+    #         ci.cache.set(params['uuid'], json.dumps( param))
+    #     else:
+    #         ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
+    #     etcd=self.getetcd(params)
+    #     if status!='':
+    #         return {'etcd':etcd, 'salt':salt}
+    #     else:
+    #         return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
+
+
+
 
 
     def get_product_uuid(self,ip):
@@ -235,9 +279,9 @@ class Cli:
     def feedback_result(self,req,resp):
         param=req.params['param']
         data=json.loads(param)
-        if 'index' in data.keys() and str(data['index']) in self.cmdkeys.keys():
+        if 'index' in data.keys() and str(data['index']) in ci.redis.smembers("indexs"):
             # self.cmdkeys[str(data['index'])]=data['result']
-            self.cache.set(str(data['index']),data['result'])
+            ci.redis.set(str(data['index']),5,data['result'])
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
 
@@ -270,6 +314,7 @@ class Cli:
             cmd=''
             ip=''
             timeout=3
+            async='0'
             if  'c' in params:
                 cmd=params['c']
             else:
@@ -280,6 +325,8 @@ class Cli:
                 return '-i(ip) require'
             if  't' in params:
                 timeout= float( params['t'])
+            if  'async' in params:
+                async= params['async']
             import urllib2,urllib
             objs=self.hb.get_product_uuid(ip)
             salt=''
@@ -311,10 +358,14 @@ class Cli:
             # print ret
             index=str(ret['node']['createdIndex'])
             self.cmdkeys[index]=''
+            ci.redis.sadd('indexs',index)
             start=time.time()
+            if async=='1':
+                return index
             if json.loads(ret['node']['value'])['cmd']==cmd:
                 while True:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
+                        ci.redis.srem('indexs',index)
                         break
                     else:
                         # time.sleep(0.1)
@@ -323,9 +374,9 @@ class Cli:
                         #     del self.cmdkeys[index]
 
                         time.sleep(1)
-                        ret=ci.cache.get(index)
+                        ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
-                            ci.cache.delete(index)
+                            ci.redis.srem('indexs',index)
                             return ret.encode('utf-8')
                 return '(success) submit command success'
             else:
