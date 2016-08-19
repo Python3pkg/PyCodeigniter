@@ -336,7 +336,6 @@ class Cli:
             objs=self.hb.get_product_uuid(ip)
             salt=''
             puuid=''
-            print(objs)
             if objs==None  or len(objs)==0:
                 return '(error) invalid ip'
             elif len(objs)==1:
