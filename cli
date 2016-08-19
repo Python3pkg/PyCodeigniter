@@ -20,7 +20,6 @@ import re
 import logging
 import hashlib
 import sys
-import json
 import tempfile
 import threading
 import getopt
@@ -29,6 +28,7 @@ import json
 import random
 import platform
 import socket
+from urlparse import urlparse
 
 
 pidfile="/var/zbxcli.pid"
@@ -933,6 +933,14 @@ if __name__ == '__main__':
                 logger.error(er)
                 pass
 
+    server=os.environ.get('CLI_SERVER',server_url)
+
+    parts=urlparse(server)
+    server_url=parts.scheme+'://'+parts.netloc
+    if parts.path.strip()!='':
+        default_module= parts.path[1:]
+
+
     module=default_module
     action='help'
     cli=ZbxCli(default_module)
@@ -953,21 +961,7 @@ if __name__ == '__main__':
     else:
        cli.default(module,action,sys.argv[1:])
 
-    #if len(sys.argv)<2:
-    #    cli.help(sys.argv)
-    #    sys.exit(0)
-    #elif (len(sys.argv)==2) or (len(sys.argv)>2 and sys.argv[2].startswith('-')):
-    #    action=sys.argv[1]
-    #elif len(sys.argv)>2 and not sys.argv[2].startswith('-'):
-    #    module=sys.argv[1]
-    #    action=sys.argv[2]
-    #elif len(sys.argv)>2 :
-    #    module=sys.argv[1]
-    #    action=sys.argv[2]
-    #if hasattr(cli,action):
-    #   getattr(cli,action)(sys.argv[2:])
-    #else:
-    #   cli.default(module,action,sys.argv[2:])
+
 
 
 
