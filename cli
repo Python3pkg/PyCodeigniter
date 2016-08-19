@@ -842,7 +842,7 @@ class ZbxDaemon(Daemon):
                 cmd = cNode['cmd'].encode('utf-8')
                 md5 = cNode['md5']
                 if 'timeout' in cNode.keys():
-                    timeout = int(cNode['timeout'])
+                    timeout = float(cNode['timeout'])
                 else:
                     timeout=30
                 if md5==self.util.md5(cmd+self.salt):
