@@ -3,13 +3,13 @@
 __author__ = 'xiaozhang'
 
 
-import shutil,subprocess,time,traceback
+
 import   atexit
 from signal import SIGTERM
 
 import os
 try:
-    import urllib2
+    import urllib2 as urllib2
 except:
     import urllib.request as urllib2
 import urllib
@@ -29,6 +29,10 @@ import random
 import platform
 import socket
 from urlparse import urlparse
+import uuid
+import os, sys, inspect
+import getpass
+
 
 
 pidfile="/var/zbxcli.pid"
@@ -436,7 +440,6 @@ class ZbxCommon(object):
 
 
     def get_uuid(self):
-        import uuid
         return str(uuid.uuid4())
 
 
@@ -478,7 +481,6 @@ class ZbxCommon(object):
 
 
     def exec_filename(self):
-        import os, sys, inspect
         path = os.path.realpath(sys.path[0])
         if os.path.isfile(path):
             path = os.path.dirname(path)
@@ -596,7 +598,6 @@ class ZbxCli():
         if 'u' not in data:
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
-            import getpass
             data['p']=getpass.getpass('please input password: ')
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         print(ret)
@@ -606,7 +607,6 @@ class ZbxCli():
         if 'u' not in data:
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
-            import getpass
             data['p']=getpass.getpass('please input password: ')
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         home= os.path.expanduser('~')
@@ -627,7 +627,6 @@ class ZbxCli():
         if 'u' not in data:
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
-            import getpass
             data['p']=getpass.getpass('please input password: ')
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         print(ret)

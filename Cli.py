@@ -497,7 +497,10 @@ class Cli:
     #         return "#!/bin/bash\n echo '(error) file not found'"
 
     def upgrade(self,req,resp):
-        return open('cli').read()
+        if os.path.isfile('cli.mini'):
+            return open('cli.mini').read()
+        else:
+            return open('cli').read()
 
     def _params(self,param='{}',opts=''):
         params= json.loads(param)
