@@ -1,1 +1,2 @@
 pyminifier  --gzip cli > cli.mini
+sed -i '/pyminifier/d' cli.mini
