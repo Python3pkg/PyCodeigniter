@@ -772,7 +772,7 @@ class ZbxDaemon(Daemon):
             self.etcd_list=objs['etcd']['server']
             self.etcd_prefix=objs['etcd']['prefix']
             print('salt',self.salt)
-            logger.info("heartbeat2server")
+            logger.info("heartbeat2server OK")
         except Exception as er:
             logger.error('heartbeat2server'+str(er))
 
