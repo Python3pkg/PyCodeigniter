@@ -1,2 +1,8 @@
-pyminifier  --gzip cli > cli.mini
+
+DIR=$(cd "$(dirname "$0")"; pwd)
+cd $DIR
+python pyobfuscate cli > clic
+pyminifier  --gzip clic > cli.mini
 sed -i '/pyminifier/d' cli.mini
+rm clic -rf
+
