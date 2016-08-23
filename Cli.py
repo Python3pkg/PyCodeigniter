@@ -318,6 +318,7 @@ class Cli:
             etcd=self.hb.getetcd(params)
             cmd=''
             ip=''
+            user='root'
             timeout=3
             async='0'
             if  'c' in params:
@@ -330,6 +331,8 @@ class Cli:
                 return '-i(ip) require'
             if  't' in params:
                 timeout= float( params['t'])
+            if  'u' in params:
+                user= params['u']
             if  'async' in params:
                 async= params['async']
             import urllib2,urllib
@@ -350,7 +353,7 @@ class Cli:
             if puuid=='' or salt=='':
                 return '(error)client not online'
 
-            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout)}) }
+            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}) }
             data=urllib.urlencode(data)
             req = urllib2.Request(
                     url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
@@ -383,7 +386,10 @@ class Cli:
                         ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
                             ci.redis.srem('indexs',index)
-                            return ret.encode('utf-8')
+                            try:
+                                return ret.encode('utf-8')
+                            except Exception as er:
+                                return ret
                 return '(success) submit command success'
             else:
                 return '(unsafe) submit command success '
@@ -497,7 +503,7 @@ class Cli:
     #         return "#!/bin/bash\n echo '(error) file not found'"
 
     def upgrade(self,req,resp):
-        if os.path.isfile('cli.mini'):
+        if os.path.isfile('climini'):
             return open('cli.mini').read()
         else:
             return open('cli').read()
