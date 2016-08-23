@@ -285,7 +285,7 @@ class ZbxCommon(object):
                 key=f.read().strip()
         try:
             headers = {
-                'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6',
+                'User-Agent':'CLI agent(1.0)',
                 'auth-uuid':key
             }
             if data!=None:
@@ -756,7 +756,9 @@ class ZbxDaemon(Daemon):
             # return self.get_etcd()
 
     def status(self):
-        return self.util.execute(self.shellstr)
+        #return self.util.execute(self.shellstr)
+        cmd=ZbxCommand(self.shellstr)
+        return cmd.run()
 
     def heartbeat2server(self):
         try:
