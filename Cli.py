@@ -208,9 +208,12 @@ class HeartBeat(object):
         if objs!=None:
             ret.append(json.loads(objs))
 
-        return ret
-        objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s) or (uuid=%s)"% (ip,ip))
-        return objs
+        if len(ret)>0 or len(ip)>16:
+            return ret
+        else:
+            self.check_status()
+            objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s) or (uuid=%s)"% (ip,ip))
+            return objs
 
     def load_data(self):
         if os.path.isfile(self.filename):
