@@ -35,9 +35,9 @@ import getpass
 
 
 
-pidfile="/var/zbxcli.pid"
+pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8006"
-# server_url="http://10.3.155.104:8005"
+server_url="http://10.3.155.104:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 
@@ -582,6 +582,8 @@ class ZbxCli():
         elif 'debug' == opt:
             print("cli daemon debug")
             daemon.run()
+        elif 'install'==  opt:
+            pass
         else:
             print("usage: cli deamon -s start|stop|restart")
             sys.exit(2)
@@ -848,13 +850,13 @@ class ZbxDaemon(Daemon):
                     timeout = float(cNode['timeout'])
                 else:
                     timeout=30
-                if md5==self.util.md5(cmd+self.salt):
+                if md5==self.util.md5(cmd+str(self.salt)):
 
                     # self.keys.append(key)
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
-                        result = ZbxCommand(cmd).run(int(timeout))
+                        result = ZbxCommand(cmd).run(float(timeout))
                         #print(type(result))
                         try:
                             result=result.decode('utf-8')
