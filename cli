@@ -416,7 +416,8 @@ class ZbxCommon(object):
 
     def execute(self,cmd):
         try:
-            return os.popen(cmd).read()
+            return ZbxCommand(cmd).run()
+            # return os.popen(cmd).read()
         except Exception as err:
             logger.error(err)
             return ""
@@ -426,7 +427,6 @@ class ZbxCommon(object):
         if platform.system().lower()=='windows':
             name,xx,ips=socket.gethostbyname_ex(socket.gethostname())
             return ips
-
         else:
             cmdline = "ip a | egrep \"^\s*inet.*\" | grep -v inet6 | awk '{print $2}' | awk -v FS='/' '{print $1}'"
             ret = self.execute(cmdline)
