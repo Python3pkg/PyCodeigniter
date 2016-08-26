@@ -324,6 +324,19 @@ class ZbxCommon(object):
                     pass
 
         return html
+
+    def cmdline_args(self,s):
+        import re
+        l= re.findall(r"'[\s\S]*[\']?'|\"[\s\S]*[\"]?\"",s,re.IGNORECASE|re.MULTILINE)
+        for i,v in enumerate(l):
+            s=s.replace(v,'{'+str(i)+'}')
+        p=re.split(r'\s+',s)
+        ret=[]
+        for a in p:
+            if re.match(r'\{\d+\}',a):
+                a=l[int(re.sub(r'^{|}$','',a))]
+            ret.append(a)
+        return ret
     def getopt(self,inputs):
         def ptype(input):
             if input == "":
@@ -720,11 +733,15 @@ server_url=http://127.0.0.1:8005
                 break;
         if line.find('python')>0:
                 is_python=True
+        argstr=''
+        if 'a' in argv.keys():
+            argstr=argv['a']
+        shell_argv=self.util.cmdline_args(argstr)
         if is_python:
-            cmd=ZbxCommand('/usr/bin/python %s %s'% (fn,self.util.command_args(args[2:])))
+            cmd=ZbxCommand('/usr/bin/python %s %s'% (fn, " ".join(shell_argv)))
             result=cmd.run(60*60*24)
         else:
-            cmd=ZbxCommand('/bin/bash %s %s'% (fn,self.util.command_args(args[2:])))
+            cmd=ZbxCommand('/bin/bash %s %s'% (fn," ".join(shell_argv)))
             result=cmd.run(60*60*24)
         print(result)
 

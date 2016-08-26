@@ -276,7 +276,7 @@ class Cli:
         ########## 文件与shell ##############
 
         cli upgrade   更新 cli 程序
-        cli shell -f filename  下载并接行shell指令
+        cli shell -f filename -a "shell 参数"  下载并接行shell指令
         cli listfile   查看文件列表
         cli upload -f filename [-d directory] 上传文件
         cli download -f filename [-d directory] [-o path/to/save]  下载文件
