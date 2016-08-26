@@ -182,23 +182,25 @@ class Daemon(object):
 
 
 class ZbxCommand(object):
-    def __init__(self, cmd):
+    def __init__(self, cmd,is_log=True):
         self.cmd = cmd
         self.process = None
+        self.is_log=is_log
         self.uuid=str(datetime.datetime.now()).replace(' ','').replace(':','').replace('-','').replace('.','')
         self.result=open(tempfile.gettempdir()+ os.path.sep +self.uuid,'a+')
 
 
     def run(self, timeout=30):
         def target():
-            logger.info(self.cmd)
+            if self.is_log:
+                logger.info(self.cmd)
             self.process = subprocess.Popen(self.cmd, shell=True,stdout=self.result,stderr=self.result)
             self.process.communicate()
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
         if thread.is_alive():
-            logger.info(self.cmd)
+            logger.warn(self.cmd)
             self.process.terminate()
             thread.join()
             util=ZbxCommon()
@@ -759,7 +761,7 @@ class ZbxDaemon(Daemon):
 
     def status(self):
         #return self.util.execute(self.shellstr)
-        cmd=ZbxCommand(self.shellstr)
+        cmd=ZbxCommand(self.shellstr,is_log=False)
         return cmd.run()
 
     def heartbeat2server(self):
