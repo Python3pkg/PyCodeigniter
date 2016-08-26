@@ -680,6 +680,27 @@ server_url=http://127.0.0.1:8005
         print(ret)
         return ret
 
+    def request(self,args):
+        argv=self.util.getopt(args)
+        url=''
+        if not 'url' in argv.keys():
+            print('--url(url) url is request')
+            return
+        else:
+            url=argv['url']
+        keys=['__func__','__ctrl__','url']
+        for key in keys:
+            if key in argv.keys():
+                del argv[key]
+        data=argv
+        method="GET"
+        if len(data)>0:
+            method="POST"
+        result=self.util._url_fetch(url,data,httpCmd=method)
+        print(result)
+        return result
+
+
     def remote_server(self,module,action,argv):
         if isinstance(argv,dict):
             if not 's' in argv:

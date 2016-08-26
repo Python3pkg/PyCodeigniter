@@ -300,6 +300,12 @@ class Cli:
             ci.redis.setex(str(data['index']),5,data['result'])
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
+    def uuid(self,req,resp):
+        return ci.uuid()
+
+    def md5(self,req,resp):
+        params=self._params(req.params['param'])
+        return ci.md5(params['s'])
 
     def heartbeat(self,req,resp):
         params=self._params(req.params['param'])
@@ -323,29 +329,9 @@ class Cli:
         return self.hb.confirm_offline()
 
 
-    def cmd(self,req,resp):
+    def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
         try:
-            params=self._params(req.params['param'])
-            etcd=self.hb.getetcd(params)
-            cmd=''
-            ip=''
-            user='root'
-            timeout=3
-            async='0'
-            if  'c' in params:
-                cmd=params['c']
-            else:
-                return '-c(cmd) require'
-            if  'i' in params:
-                ip=params['i']
-            else:
-                return '-i(ip) require'
-            if  't' in params:
-                timeout= float( params['t'])
-            if  'u' in params:
-                user= params['u']
-            if  'async' in params:
-                async= params['async']
+            etcd=self.hb.getetcd(ip)
             import urllib2,urllib
             objs=self.hb.get_product_uuid(ip)
             salt=''
@@ -408,6 +394,31 @@ class Cli:
             print er
             return 'fail'
             pass
+
+    def cmd(self,req,resp):
+        params=self._params(req.params['param'])
+
+        cmd=''
+        ip=''
+        user='root'
+        timeout=3
+        async='0'
+        if  'c' in params:
+            cmd=params['c']
+        else:
+            return '-c(cmd) require'
+        if  'i' in params:
+            ip=params['i']
+        else:
+            return '-i(ip) require'
+        if  't' in params:
+            timeout= float( params['t'])
+        if  'u' in params:
+            user= params['u']
+        if  'async' in params:
+            async= params['async']
+
+        return  self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
 
 
 
@@ -1207,4 +1218,118 @@ class Cli:
         rows=map(lambda row:json.loads(row['body']),rows)
         # print(rows)
         return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
+
+# ################################################ cron ###############################################
+
+    def _cmdline_args(self,s):
+        import re
+        l= re.findall(r"'[\s\S]*[\']?'|\"[\s\S]*[\"]?\"",s,re.IGNORECASE|re.MULTILINE)
+        for i,v in enumerate(l):
+            s=s.replace(v,'{'+str(i)+'}')
+        p=re.split(r'\s+',s)
+        ret=[]
+        for a in p:
+            if re.match(r'\{\d+\}',a):
+                a=l[int(re.sub(r'^{|}$','',a))]
+            ret.append(a)
+        return ret
+
+
+    def _check_uuid(self,req):
+        params=self._params(req.params['param'])
+        uuid=''
+        if 'i' in params:
+            uuid=params['i']
+        else:
+            return False,'-i(ip or uuid) is required'
+        obj=self.hb.get_product_uuid(uuid)
+        if len(obj)==1:
+            return True,obj[0]['uuid']
+        else:
+            return False,'client not online'
+
+
+
+    def cron_list(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cron(uuid,action='get')
+        return uuid
+
+
+    def cron_status(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cron(uuid,action='status')
+        return uuid
+
+    def cron_stop(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cron(uuid,action='stop')
+        return uuid
+    def cron_start(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cron(uuid,action='start')
+        return uuid
+
+    def cron_load(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cron(uuid,action='load')
+        return uuid
+
+    def cron_add(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            params=self._params(req.params['param'])
+            timer='* * * * *'
+            args=[]
+            cmd=''
+            comment=''
+            start=''
+            out='/tmp/'+ci.uuid()+'.log'
+            if not 't' in params:
+                return '-t(timer) is required'
+            if not 'c' in params:
+                return '-c(cmd) is required'
+            if 'a' in params:
+                args=self._cmdline_args(params['a'])
+            if 'o' in params:
+                out=params['o']
+            cmd=params['c']
+            timer=params['t']
+            job={'args':args,'start':'','cmd':cmd,'time':timer,'out':out}
+            import urllib
+            return self._cron(uuid,action='set?j=%s' % (  urllib.quote(json.dumps(job))) )
+        return uuid
+
+    def cron_del(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            params=self._params(req.params['param'])
+            if not 'k' in params.keys():
+                return '-k(key) is required'
+            k=params['k']
+            return self._cron(uuid,action='del?h=%s'%k)
+        return uuid
+
+    def cron_log(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            params=self._params(req.params['param'])
+            if not 'd' in params.keys():
+                return '-d(day) is required,for example: 20160607'
+            d=params['d']
+            return self._cron(uuid,action='log?d=%s'%d)
+        return uuid
+
+    def _cron(self,uuid,action='get',param=''):
+        return self._cmd(uuid, "cli request --url '%s'" % ('http://127.0.0.1:4444/%s'% action) )
+
+    def log(self,req,resp):
+        print(req.params)
+        pass
+
 
