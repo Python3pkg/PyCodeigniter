@@ -110,23 +110,23 @@ class HeartBeat(object):
                 result['online']=result['online']+1
         return  result
 
+    @auth
+    def _status_line(self,status='offline'):
+        self.check_status()
+        result=[]
+        for d in self.data:
+            if d['status']==status:
+                d['utime']=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(d['utime']))
+                result.append(d)
+        return  result
 
-    @auth
+
     def offline(self):
-        self.check_status()
-        result=[]
-        for d in self.data:
-            if d['status']=='offline':
-                result.append(d)
-        return  result
-    @auth
+        return self._status_line(status='offline')
+
+
     def online(self):
-        self.check_status()
-        result=[]
-        for d in self.data:
-            if d['status']=='online':
-                result.append(d)
-        return  result
+        return self._status_line(status='online')
 
 
     def getetcd(self,param):
