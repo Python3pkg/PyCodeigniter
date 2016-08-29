@@ -495,11 +495,11 @@ class ZbxCommon(object):
                 finally:
                     host.close()
             if host_name.strip()=='':
-                return  socket.gethostbyname()
+                host_name= socket.gethostbyname()
         except Exception as er:
+            logger.error(er)
             return ""
-            pass
-        return host_name
+        return host_name.strip()
 
 
     def exec_filename(self):
@@ -812,9 +812,12 @@ class ZbxDaemon(Daemon):
     def heartbeat2server(self):
         try:
             ips=",".join(self.util.get_all_ip_list())
-            ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),
-                                                                  '--ips',ips,'--status', self.status(),'--platform',
-                                                                  platform.system().lower(),'--hostname',self.util.get_hostname() ])
+            # ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),
+            #                                                       '--ips',ips,'--status', self.status(),'--platform',
+            #                                                       platform.system().lower(),'--hostname',self.util.get_hostname() ])
+            data={'uuid':self.util.get_product_uuid(),'ips':ips,'status':self.status(),
+                  'platform':platform.system().lower(),'hostname':self.util.get_hostname() }
+            ret=self.util.url_fetch(server_url+'/%s/%s'%(module,'heartbeat'),{'param':json.dumps(data)})
             objs= json.loads(ret)
             self.salt=objs['salt']
             self.etcd_conf=objs['etcd']
