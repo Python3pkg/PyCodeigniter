@@ -452,6 +452,9 @@ class ZbxCommon(object):
                   ips.append(ip.strip())
             return ips
 
+    def get_hostname(self):
+        return socket.gethostbyname()
+
 
 
     def get_uuid(self):
@@ -805,7 +808,9 @@ class ZbxDaemon(Daemon):
     def heartbeat2server(self):
         try:
             ips=",".join(self.util.get_all_ip_list())
-            ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),'--ips',ips,'--status', self.status(),'--platform',platform.system().lower() ])
+            ret = self.zbxcli.default(default_module,'heartbeat',['--uuid',self.util.get_product_uuid(),
+                                                                  '--ips',ips,'--status', self.status(),'--platform',
+                                                                  platform.system().lower(),'--hostname',self.util.get_hostname() ])
             objs= json.loads(ret)
             self.salt=objs['salt']
             self.etcd_conf=objs['etcd']

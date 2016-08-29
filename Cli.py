@@ -39,7 +39,7 @@ class HeartBeat(object):
 
     def __init__(self):
         self.filename='heartbeat.json'
-        self.data=[]# {'uuid','status','utime','salt','ips'}
+        self.data=[]# {'uuid','status','utime','salt','ips','hostname','system_os'}
         self.load_data()
         self.uuids=set()
 
@@ -139,11 +139,15 @@ class HeartBeat(object):
     # @cache.Cache()
     def heartbeat(self,params):
         status=''
+        hostname=''
         if 'status'  in params.keys():
             status=params['status'].strip()
 
         if 'uuid' not in params.keys():
             return '(error) invalid request'
+        if 'hostname' in params.keys():
+            hostname=params['hostname']
+
         objs=self.get_product_uuid(params['uuid'])
         # self.uuids.add(params['uuid'])
         ci.redis.sadd('uuids',params['uuid'])
@@ -152,14 +156,14 @@ class HeartBeat(object):
         utime=int(time.time())
 
         if objs==None or len(objs)==0:
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             # self.data.append(param)
             ci.cache.set(params['uuid'],json.dumps(param))
             self.set_online(params['uuid'], param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             self.set_online(params['uuid'],param)
             ci.cache.set(params['uuid'], json.dumps( param))
         else:
@@ -1299,7 +1303,10 @@ class Cli:
             if 'o' in params:
                 out=params['o']
             cmd=params['c']
-            timer=params['t']
+            # timer=params['t']
+            timer=timer.strip()
+            cmd=cmd.strip()
+            out=out.strip()
             job={'args':args,'start':'','cmd':cmd,'time':timer,'out':out}
             import urllib
             return self._cron(uuid,action='set?j=%s' % (  urllib.quote(json.dumps(job))) )
