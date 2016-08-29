@@ -37,7 +37,7 @@ import getpass
 
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8006"
-server_url="http://10.3.155.104:8005"
+#server_url="http://10.3.155.104:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 
@@ -452,10 +452,6 @@ class ZbxCommon(object):
                   ips.append(ip.strip())
             return ips
 
-    def get_hostname(self):
-        return socket.gethostbyname()
-
-
 
     def get_uuid(self):
         return str(uuid.uuid4())
@@ -486,15 +482,21 @@ class ZbxCommon(object):
 
     def get_hostname(self):
         os_name = os.name
-        host_name = None
-        if os_name == 'nt':
-            host_name = os.getenv('computername')
-        elif os_name == 'posix':
-            host = os.popen('hostname')
-            try:
-                host_name = host.read().strip()
-            finally:
-                host.close()
+        host_name = ""
+        try:
+            if os_name == 'nt':
+                host_name = os.getenv('computername')
+            elif os_name == 'posix':
+                host = os.popen('hostname')
+                try:
+                    host_name = host.read().strip()
+                finally:
+                    host.close()
+            if host_name.strip()=='':
+                return  socket.gethostbyname()
+        except Exception as er:
+            return ""
+            pass
         return host_name
 
 
