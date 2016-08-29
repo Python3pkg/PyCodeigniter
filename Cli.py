@@ -1250,37 +1250,37 @@ class Cli:
 
 
 
-    def cron_list(self,req,resp):
+    def listcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             return self._cron(uuid,action='get')
         return uuid
 
 
-    def cron_status(self,req,resp):
+    def statuscron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             return self._cron(uuid,action='status')
         return uuid
 
-    def cron_stop(self,req,resp):
+    def stopcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             return self._cron(uuid,action='stop')
         return uuid
-    def cron_start(self,req,resp):
+    def startcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             return self._cron(uuid,action='start')
         return uuid
 
-    def cron_load(self,req,resp):
+    def loadcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             return self._cron(uuid,action='load')
         return uuid
 
-    def cron_add(self,req,resp):
+    def addcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             params=self._params(req.params['param'])
@@ -1305,7 +1305,7 @@ class Cli:
             return self._cron(uuid,action='set?j=%s' % (  urllib.quote(json.dumps(job))) )
         return uuid
 
-    def cron_del(self,req,resp):
+    def delcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             params=self._params(req.params['param'])
@@ -1315,7 +1315,7 @@ class Cli:
             return self._cron(uuid,action='del?h=%s'%k)
         return uuid
 
-    def cron_log(self,req,resp):
+    def logcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
             params=self._params(req.params['param'])
