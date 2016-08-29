@@ -529,7 +529,7 @@ class Cli:
     #         return "#!/bin/bash\n echo '(error) file not found'"
 
     def upgrade(self,req,resp):
-        if os.path.isfile('climini'):
+        if os.path.isfile('cli.mini'):
             return open('cli.mini').read()
         else:
             return open('cli').read()
