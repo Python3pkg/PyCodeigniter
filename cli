@@ -490,6 +490,8 @@ class ZbxCommon(object):
                 host = os.popen('hostname')
                 try:
                     host_name = host.read().strip()
+                except:
+                    host_name=''
                 finally:
                     host.close()
             if host_name.strip()=='':
