@@ -47,8 +47,15 @@ default_module='cli'
 
 bin_name='cli'
 client_filename='/bin/%s' % bin_name
-client_log_filename= tempfile.gettempdir()+os.path.sep+ bin_name+".log"
-client_log_filename= tempfile.gettempdir()+os.path.sep+ bin_name+".log"
+#client_log_filename= tempfile.gettempdir()+os.path.sep+ bin_name+".log"
+
+client_log_filename='/var/log/cli.log'
+
+log_dir= os.path.dirname(client_log_filename)
+
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
+
 script_path= tempfile.gettempdir()+ os.path.sep+'script'
 
 
@@ -72,6 +79,7 @@ class Daemon(object):
                 self.stderr = stderr
                 self.pidfile = pidfile
                 self.salt=''
+                self.pid=''
                 self.shellstr=''
 
         def daemonize(self):
@@ -117,6 +125,7 @@ class Daemon(object):
                 # write pidfile
                 atexit.register(self.delpid)
                 pid = str(os.getpid())
+                self.pid=pid
                 file(self.pidfile,'w+').write("%s\n" % pid)
 
         def delpid(self):
@@ -142,6 +151,19 @@ class Daemon(object):
                 self.daemonize()
                 self.run()
 
+        def kill(self):
+            try:
+                self.daemonize()
+                kill='''
+                  ps aux|grep -v grep|grep -v -w '%s'|grep python|grep -w 'cli daemon'|awk '{print $2}'|xargs -n 1 kill -9
+                  ''' % (self.pid)
+                if os.path.exists(self.pidfile):
+                    os.remove(self.pidfile)
+                ZbxCommand(kill,is_log=False).run()
+            except Exception as er:
+                pass
+
+
         def stop(self):
                 """
                 Stop the daemon
@@ -153,7 +175,7 @@ class Daemon(object):
                         pf.close()
                 except IOError:
                         pid = None
-
+                self.kill()
                 if not pid:
                         message = "pidfile %s does not exist. Daemon not running?\n"
                         sys.stderr.write(message % self.pidfile)
@@ -172,6 +194,7 @@ class Daemon(object):
                         else:
                                 print(str(err))
                                 sys.exit(1)
+
 
         def restart(self):
                 """
@@ -604,6 +627,8 @@ class ZbxCli():
         elif 'debug' == opt:
             print("cli daemon debug")
             daemon.run()
+        elif 'kill' == opt:
+            daemon.kill()
         elif 'install'==  opt:
             pass
         else:

@@ -328,6 +328,44 @@ class Cli:
         self.hb.dump_data()
         return 'ok'
 
+    @auth
+    def suicide(self,req,resp):
+        pass
+
+    def _repair(self,ip):
+        key_filename =ci.config.get('deploy')['key_filename']
+        password=ci.config.get('deploy')['password']
+        user=ci.config.get('deploy')['user']
+        port=ci.config.get('deploy')['port']
+        cmd='sudo wget http://10.3.155.104:8005/cli/upgrade -O /bin/cli && sudo  chmod +x  /bin/cli && sudo  /bin/cli daemon -s restart'
+        return self._remote_exec(ip,cmd,user=user,password=password,port=port,key_file=key_filename)
+
+
+    def repair(self,req,resp):
+        params=self._params(req.params['param'])
+        if 'ip' in params:
+            ip=params['ip']
+            return self._repair(ip)
+
+        rows=self.hb.offline()
+        ips=set()
+        for row in rows:
+            _ips=row['ips'].split(',')
+            for i in _ips:
+                if i.startswith('10.'):
+                    ips.add(i)
+                    break
+        ret=''
+        for i in ips:
+            ret+= self._repair(i)
+        return ret+"\nfinish"
+
+
+
+
+
+
+
 
     def confirm_offline(self,req,resp):
         return self.hb.confirm_offline()
@@ -643,47 +681,46 @@ class Cli:
             port=params['P']
         return self._remote_exec(ip,cmd, user= user, password=password,port=port)
 
-    def _remote_exec(self,ip,cmd,user='root',password='root',port=22):
-       try:
-           import paramiko
-           ssh=paramiko.SSHClient()
-           ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-           #pkey= paramiko.RSAKey.from_private_key_file ('keypath/filename','keypassword')
-           #try:
-           #    ssh.connect(ip,22,'ops','',pkey)
-           #except Exception as err:
-           #    self.app.logger.error("PKERROR:"+str(err))
-           #    try:
-           #        ssh.connect(ip,22,'root','root')
-           #    except Exception as usererr:
-           #        self.app.logger.error("USERERROR:"+str(err))
-           #        ssh.connect(ip,16120,'root','root')
+    def _remote_exec(self,ip,cmd,user='root',password='root',port=22,key_file=''):
+        try:
+            import paramiko
+            ssh=paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-           ssh.connect(ip,port,user,password)
-           ssh.exec_command('sudo -i')
-           ret=[]
-           reterr=[]
-           if isinstance(cmd,list):
+            if key_file!='':
+                pkey= paramiko.RSAKey.from_private_key_file (key_file,password)
+                print()
+                try:
+                      ssh.connect(ip,port=port,username=user,password=password,pkey=pkey)
+                except Exception as err:
+                      self.app.logger.error("PKERROR:"+str(err))
+            else:
+                ssh.connect(ip,port,user,password)
+            ssh.exec_command('sudo -i',get_pty=True)
+            ret=[]
+            reterr=[]
+            if isinstance(cmd,list):
                for c in cmd:
-                   stdin, stdout, stderr = ssh.exec_command(cmd)
+                   stdin, stdout, stderr = ssh.exec_command(cmd,get_pty=True)
                    reterr.append("".join(stderr.readlines()))
                    ret.append("".join(stdout.readlines()))
-           else:
-               stdin, stdout, stderr = ssh.exec_command(cmd)
+            else:
+               stdin, stdout, stderr = ssh.exec_command(cmd,get_pty=True)
                reterr=stderr.readlines()
                ret=stdout.readlines()
 
-           if len(reterr)>0:
-               return "".join(reterr)
-           return "".join(ret)
-       except Exception as er:
-           self.app.logger.error(er)
-           return str(er)
-       finally:
-           try:
-              ssh.close()
-           except Exception as err:
-               pass
+            if len(reterr)>0:
+                return "".join(reterr)
+            else:
+                return "".join(ret)
+        except Exception as er:
+            self.app.logger.error(er)
+            return str(er)
+        finally:
+            try:
+                ssh.close()
+            except Exception as err:
+                pass
 
 ################################################env###############################################
     def _checkenv(self,param):
