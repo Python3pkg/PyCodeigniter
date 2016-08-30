@@ -307,6 +307,25 @@ class Cli:
     def uuid(self,req,resp):
         return ci.uuid()
 
+    def _check_server(self, address, port):
+        import socket
+        s = socket.socket()
+        print "Attempting to connect to %s on port %s" % (address, port)
+        try:
+            #s.settimeout(2)
+            s.connect((address, port))
+            print "Connected to %s on port %s" % (address, port)
+            return True
+        except socket.error, e:
+            print "Connection to %s on port %s failed: %s" % (address, port, e)
+            return False
+        finally:
+            try:
+                s.close()
+            except Exception as er:
+                pass
+
+
     def md5(self,req,resp):
         params=self._params(req.params['param'])
         return ci.md5(params['s'])
@@ -353,8 +372,9 @@ class Cli:
             _ips=row['ips'].split(',')
             for i in _ips:
                 if i.startswith('10.'):
-                    ips.add(i)
-                    break
+                    if self._check_server(i,16120):
+                        ips.add(i)
+                        break
         ret=''
         for i in ips:
             ret+= self._repair(i)
