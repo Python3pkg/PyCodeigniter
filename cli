@@ -205,7 +205,7 @@ class Daemon(object):
 
 
 class ZbxCommand(object):
-    def __init__(self, cmd,is_log=True):
+    def __init__(self, cmd,is_log=False):
         self.cmd = cmd
         self.process = None
         self.is_log=is_log
@@ -933,7 +933,7 @@ class ZbxDaemon(Daemon):
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
-                        result = ZbxCommand(cmd).run(float(timeout))
+                        result = ZbxCommand(cmd,is_log=True).run(float(timeout))
                         #print(type(result))
                         try:
                             result=result.decode('utf-8')
