@@ -62,7 +62,7 @@ class HeartBeat(object):
             except Exception as er:
                 pass
 
-    @auth
+
     def confirm_offline(self):
         self.check_status()
         offline=[]
@@ -110,7 +110,7 @@ class HeartBeat(object):
                 result['online']=result['online']+1
         return  result
 
-    @auth
+
     def _status_line(self,status='offline'):
         self.check_status()
         result=[]
@@ -120,11 +120,11 @@ class HeartBeat(object):
                 result.append(d)
         return  result
 
-
+    @auth
     def offline(self):
         return self._status_line(status='offline')
 
-
+    @auth
     def online(self):
         return self._status_line(status='online')
 
@@ -381,13 +381,7 @@ class Cli:
         ci.logger.info(ret)
         return ret+"\nfinish"
 
-
-
-
-
-
-
-
+    @auth
     def confirm_offline(self,req,resp):
         return self.hb.confirm_offline()
 
