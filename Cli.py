@@ -256,17 +256,9 @@ class Cli:
 
         self.hb=HeartBeat()
 
-
-
-
-
-    @auth
     def index(self,req,resp):
-        # print ci.local.env
-        #ci.set_header('WWW-Authenticate','Basic realm="Authentication System"')
-        #ci.set_header('HTTP/1.0 401 Unauthorized')
-        # sys.exit(0)
-        return "hello world".strip()
+        return "ok"
+
     def abc(self,param='',**kwargs):
         # print ci.local.env
         #ci.set_header('WWW-Authenticate','Basic realm="Authentication System"')
@@ -337,9 +329,10 @@ class Cli:
     def status(self,req,resp):
         return self.hb.status()
 
+    @auth
     def offline(self,req,resp):
         return self.hb.offline()
-
+    @auth
     def online(self,req,resp):
         return self.hb.online()
 
@@ -451,7 +444,7 @@ class Cli:
             print er
             return 'fail'
             pass
-
+    @auth
     def cmd(self,req,resp):
         params=self._params(req.params['param'])
 
