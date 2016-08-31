@@ -120,11 +120,11 @@ class HeartBeat(object):
                 result.append(d)
         return  result
 
-    @auth
+
     def offline(self):
         return self._status_line(status='offline')
 
-    @auth
+
     def online(self):
         return self._status_line(status='online')
 
