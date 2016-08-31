@@ -2,9 +2,7 @@
 # -*- coding:utf8 -*-
 __author__ = 'xiaozhang'
 
-
-
-import  atexit
+import atexit
 from signal import SIGTERM
 
 import os
@@ -33,39 +31,36 @@ import uuid
 import inspect
 import getpass
 
-
-
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8006"
 server_url="http://10.3.155.104:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
-
-# etcd_prefix='/keeper'
-
 default_module='cli'
-
 bin_name='cli'
 client_filename='/bin/%s' % bin_name
-#client_log_filename= tempfile.gettempdir()+os.path.sep+ bin_name+".log"
-
-client_log_filename='/var/log/cli.log'
-
-log_dir= os.path.dirname(client_log_filename)
-
-if not os.path.exists(log_dir):
-    os.mkdir(log_dir)
-
 script_path= tempfile.gettempdir()+ os.path.sep+'script'
+global_debug=False
 
+def init_log():
+    client_log_filename='/var/log/cli.log'
+    log_dir= os.path.dirname(client_log_filename)
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
+    log_fmt_str='%(asctime)-25s %(module)s:%(lineno)d  %(levelname)-8s %(message)s'
+    logging.basicConfig(level=logging.DEBUG,
+            format=log_fmt_str,
+            filemode='a')
+    logger = logging.getLogger('CLI')
+    file_handler=RotatingFileHandler(filename=client_log_filename,maxBytes=100 * 1024 * 1024, backupCount=3)
+    formatter= logging.Formatter(log_fmt_str)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter )
+    logger.addHandler(file_handler)
+    return logger
 
-logger = logging.getLogger()
-logging.basicConfig(level=logging.DEBUG,
-                format='%(asctime)-25s %(module)s:%(lineno)d  %(levelname)-8s %(message)s',
-                #datefmt='%a, %d %b %Y %H:%M:%S',
-                filename=tempfile.gettempdir()+ os.path.sep +'%s.log' % bin_name,
-                filemode='a')
-logger.addHandler(RotatingFileHandler(filename=client_log_filename,maxBytes=100 * 1024 * 1024, backupCount=3))
+logger=init_log()
+
 
 class Daemon(object):
         """
@@ -625,7 +620,6 @@ class ZbxCli():
             print("cli daemon restart")
             daemon.restart()
         elif 'debug' == opt:
-            print("cli daemon debug")
             daemon.run()
         elif 'kill' == opt:
             daemon.kill()
@@ -852,17 +846,17 @@ class ZbxDaemon(Daemon):
 
             self.etcd_list=objs['etcd']['server']
             self.etcd_prefix=objs['etcd']['prefix']
-            print('salt',self.salt)
+            # print('salt',self.salt)
             logger.info("heartbeat2server OK")
         except Exception as er:
             logger.error('heartbeat2server'+str(er))
 
     def heartbeat(self):
         try:
-            print("=== heartbeat start")
+            logger.info("=== heartbeat start")
             ip = self.util.get_product_uuid()
             for host in self.etcd_list:
-                print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
+                # print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
                 ips=",".join(self.util.get_all_ip_list())
                 try:
                     html = self.util.url_fetch_witherr("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
@@ -871,7 +865,7 @@ class ZbxDaemon(Daemon):
                     pass
                 if html != "":
                     break
-            print("=== heartbeata end")
+            logger.info("=== heartbeata end")
         except Exception as er:
             print(er)
             logger.error('heartbeat error:'+str(er))
@@ -880,16 +874,16 @@ class ZbxDaemon(Daemon):
     def watch_commmand(self):
         try:
             ip = self.util.get_product_uuid()
-            print("watch_commmand",ip,self.etcd_list)
+            # print("watch_commmand",ip,self.etcd_list)
             for host in self.etcd_list:
                 self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
                 content=''
                 try:
                     content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
                 except Exception as her:
-                    print(her)
+                    # print(her)
                     pass
-                print("content   "+content)
+                # print("content   "+content)
                 if content != "":
                     self.feedback_result(ip,host,content)
                     break
@@ -901,7 +895,7 @@ class ZbxDaemon(Daemon):
 
     def feedback_result(self,ip,host,content):
         try:
-            print("process cmd")
+            logger.info("process cmd")
             if content == "Not Found":
                 print("no found key")
                 return
@@ -910,11 +904,11 @@ class ZbxDaemon(Daemon):
                 url = "http://%s/v2/keys%s?recursive=true" % (host,rjson['node']['key'])
                 print("feedback_result"+ url)
                 self.util.url_fetch(url,httpCmd= 'DELETE' )
-                print("publish is no dir")
+                logger.info("publish is no dir")
                 return
 
             if not rjson['node'].get('nodes'):
-                print("no found command")
+                logger.info("no found command")
                 return
 
             for cNode in  rjson['node']['nodes']:
@@ -933,6 +927,7 @@ class ZbxDaemon(Daemon):
                     url = "http://%s/v2/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
+                        print('cmd:',cmd)
                         result = ZbxCommand(cmd,is_log=True).run(float(timeout))
                         #print(type(result))
                         try:
@@ -1016,13 +1011,14 @@ if __name__ == '__main__':
                 pass
 
     server=os.environ.get('CLI_SERVER',server_url)
+    default_module=os.environ.get('CLI_MODULE',default_module)
 
     parts=urlparse(server)
     server_url=parts.scheme+'://'+parts.netloc
     if parts.path.strip()!='':
         default_module= parts.path[1:]
 
-
+    global_debug=os.environ.get('CLI_DEBUG',global_debug)
     module=default_module
     action='help'
     cli=ZbxCli(default_module)
