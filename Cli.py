@@ -26,7 +26,7 @@ def auth(func):
     def decorated(*arg,**kwargs):
         if not 'HTTP_AUTH_UUID' in ci.local.env:
             return "(error)unauthorize1"
-        if ci.cache.get(ci.local.env['HTTP_AUTH_UUID'])==None:
+        if ci.redis.get('login_'+ci.local.env['HTTP_AUTH_UUID'])==None:
             return "(error)unauthorize"
         return func(*arg,**kwargs)
     return decorated
@@ -158,14 +158,14 @@ class HeartBeat(object):
         if objs==None or len(objs)==0:
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             # self.data.append(param)
-            ci.cache.set(params['uuid'],json.dumps(param))
+            ci.redis.set(params['uuid'],json.dumps(param))
             self.set_online(params['uuid'], param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             self.set_online(params['uuid'],param)
-            ci.cache.set(params['uuid'], json.dumps( param))
+            ci.redis.set(params['uuid'], json.dumps( param))
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
 
@@ -215,7 +215,7 @@ class HeartBeat(object):
 
     def get_product_uuid(self,ip):
         ret=[]
-        objs=ci.cache.get(ip)
+        objs=ci.redis.get(ip)
         if objs!=None:
             ret.append(json.loads(objs))
 
@@ -312,7 +312,7 @@ class Cli:
         s = socket.socket()
         print "Attempting to connect to %s on port %s" % (address, port)
         try:
-            #s.settimeout(2)
+            s.settimeout(5)
             s.connect((address, port))
             print "Connected to %s on port %s" % (address, port)
             return True
@@ -352,32 +352,33 @@ class Cli:
         pass
 
     def _repair(self,ip):
-        key_filename =ci.config.get('deploy')['key_filename']
-        password=ci.config.get('deploy')['password']
-        user=ci.config.get('deploy')['user']
-        port=ci.config.get('deploy')['port']
+        key_filename =ci.config.get('repair')['key_filename']
+        password=ci.config.get('repair')['password']
+        user=ci.config.get('repair')['user']
+        port=ci.config.get('repair')['port']
         cmd='sudo wget http://10.3.155.104:8005/cli/upgrade -O /bin/cli && sudo  chmod +x  /bin/cli && sudo  /bin/cli daemon -s restart'
         return self._remote_exec(ip,cmd,user=user,password=password,port=port,key_file=key_filename)
 
 
     def repair(self,req,resp):
+        port=ci.config.get('repair')['port']
         params=self._params(req.params['param'])
         if 'ip' in params:
             ip=params['ip']
             return self._repair(ip)
-
         rows=self.hb.offline()
         ips=set()
         for row in rows:
             _ips=row['ips'].split(',')
             for i in _ips:
                 if i.startswith('10.'):
-                    if self._check_server(i,16120):
+                    if self._check_server(i,port):
                         ips.add(i)
                         break
         ret=''
         for i in ips:
-            ret+= self._repair(i)
+            ret+="repair ip:"+ i+"\n" +self._repair(i)
+        ci.logger.info(ret)
         return ret+"\nfinish"
 
 
@@ -561,7 +562,7 @@ class Cli:
                 return '(error) user not in actvie status'
             ci.db.query("update user set logincount=logincount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
             uuid=str(ci.uuid())
-            ci.cache.set(uuid,user)
+            ci.redis.set('login_'+uuid,user)
         else:
             ci.db.query("update user set logincount=logincount+1,failcount=failcount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
 
@@ -709,7 +710,6 @@ class Cli:
 
             if key_file!='':
                 pkey= paramiko.RSAKey.from_private_key_file (key_file,password)
-                print()
                 try:
                       ssh.connect(ip,port=port,username=user,password=password,pkey=pkey)
                 except Exception as err:
