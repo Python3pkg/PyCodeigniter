@@ -468,14 +468,14 @@ class Cli:
         return req.env['REMOTE_ADDR']
 
 
-    @auth
+
     def cmd_result(self,req,resp):
         params=self._params(req.params['param'])
         if not 'i' in params.keys():
             return '-i(index) is required'
         return  ci.redis.get(params['i'])
 
-
+    @auth
     def cmd(self,req,resp):
         client_ip=req.env['REMOTE_ADDR']
         op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
@@ -512,7 +512,7 @@ class Cli:
         if ip.find(',')!=-1:
             ips=ip.split(',')
             for i in ips:
-                result[i]=self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
+                result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
         else:
             result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
 
