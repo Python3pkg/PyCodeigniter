@@ -43,20 +43,30 @@ script_path= tempfile.gettempdir()+ os.path.sep+'script'
 global_debug=False
 
 def init_log():
+    user=getpass.getuser()
     client_log_filename='/var/log/cli.log'
     log_dir= os.path.dirname(client_log_filename)
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
+    # if user=='root':
+    #     os.chmod(log_dir,0666)
     log_fmt_str='%(asctime)-25s %(module)s:%(lineno)d  %(levelname)-8s %(message)s'
     logging.basicConfig(level=logging.DEBUG,
             format=log_fmt_str,
-            filemode='a')
+            filemode='a+')
     logger = logging.getLogger('CLI')
     file_handler=RotatingFileHandler(filename=client_log_filename,maxBytes=100 * 1024 * 1024, backupCount=3)
     formatter= logging.Formatter(log_fmt_str)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter )
     logger.addHandler(file_handler)
+    if user=='root':
+        try:
+            os.popen('chattr -a %s'%(client_log_filename)).read()
+            os.chmod(client_log_filename,0777)
+            os.popen('chattr -a %s'%(client_log_filename)).read()
+        except Exception as er:
+            pass
     return logger
 
 logger=init_log()

@@ -33,6 +33,8 @@ def auth(func):
 
 
 
+
+
 class HeartBeat(object):
 
     _singleton=False
@@ -293,7 +295,7 @@ class Cli:
         data=json.loads(param)
         if 'index' in data.keys() and str(data['index']) in ci.redis.smembers("indexs"):
             # self.cmdkeys[str(data['index'])]=data['result']
-            ci.redis.setex(str(data['index']),5,data['result'])
+            ci.redis.setex(str(data['index']),60*5,data['result'])
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
     def uuid(self,req,resp):
@@ -323,8 +325,16 @@ class Cli:
         return ci.md5(params['s'])
 
     def heartbeat(self,req,resp):
+        client_ip=self._client_ip()
         params=self._params(req.params['param'])
+        if not 'ips' in params.keys():
+            return '(error) invalid ips'
+        if not client_ip in params['ips'].split(','):
+            ci.logger.info(client_ip+' attack server ')
+            return '(error) invalid client_ip'
         return self.hb.heartbeat(params)
+
+
 
     def status(self,req,resp):
         return self.hb.status()
@@ -444,15 +454,40 @@ class Cli:
             print er
             return 'fail'
             pass
-    @auth
-    def cmd(self,req,resp):
-        params=self._params(req.params['param'])
 
+    def _is_while_ip(self,ip):
+        wip=ci.config.get('white_ips',['127.0.0.1'])
+        if ip in wip:
+            return True
+        else:
+            return False
+        pass
+
+
+    def _client_ip(self,req):
+        return req.env['REMOTE_ADDR']
+
+
+    @auth
+    def cmd_result(self,req,resp):
+        params=self._params(req.params['param'])
+        if not 'i' in params.keys():
+            return '-i(index) is required'
+        return  ci.redis.get(params['i'])
+
+
+    def cmd(self,req,resp):
+        client_ip=req.env['REMOTE_ADDR']
+        op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
+        if not self._is_while_ip(client_ip):
+            return '(error) ip is not in white list.'
+        params=self._params(req.params['param'])
         cmd=''
         ip=''
         user='root'
-        timeout=3
+        timeout=5
         async='0'
+        out='text'
         if  'c' in params:
             cmd=params['c']
         else:
@@ -465,10 +500,36 @@ class Cli:
             timeout= float( params['t'])
         if  'u' in params:
             user= params['u']
+        if  'o' in params:
+            out= params['o']
+            if out not in ['json','text']:
+                return '-o(output) must be text or json'
         if  'async' in params:
             async= params['async']
+        lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
+        ci.logger.info(json.dumps(lg))
+        result={}
+        if ip.find(',')!=-1:
+            ips=ip.split(',')
+            for i in ips:
+                result[i]=self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
+        else:
+            result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
 
-        return  self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
+        if out=='text':
+            ret=[]
+            for i in result:
+                ret.append('-'*80)
+                ret.append(i)
+                ret.append(result[i])
+            return "\n".join(ret)
+        elif out=='json':
+            return result
+
+        return result
+
+
+
 
 
 
@@ -549,7 +610,8 @@ class Cli:
                 return '(error) user not in actvie status'
             ci.db.query("update user set logincount=logincount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
             uuid=str(ci.uuid())
-            ci.redis.set('login_'+uuid,user)
+            # ci.redis.set('login_'+uuid,user)
+            ci.redis.setex('login_'+uuid,5*60,user)
         else:
             ci.db.query("update user set logincount=logincount+1,failcount=failcount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
 
@@ -1374,6 +1436,13 @@ class Cli:
                 return '-d(day) is required,for example: 20160607'
             d=params['d']
             return self._cron(uuid,action='log?d=%s'%d)
+        return uuid
+
+
+    def installcron(self,req,resp):
+        ok,uuid=self._check_uuid(req)
+        if ok :
+            return self._cmd(uuid,'sudo cli download -f croncli -o /bin/croncli && sudo chmod +x /bin/croncli && sudo  /bin/croncli install && sudo  /bin/croncli start')
         return uuid
 
     def _cron(self,uuid,action='get',param=''):
