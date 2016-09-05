@@ -325,7 +325,7 @@ class Cli:
         return ci.md5(params['s'])
 
     def heartbeat(self,req,resp):
-        client_ip=self._client_ip()
+        client_ip=self._client_ip(req)
         params=self._params(req.params['param'])
         if not 'ips' in params.keys():
             return '(error) invalid ips'
