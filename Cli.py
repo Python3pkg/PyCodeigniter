@@ -475,6 +475,19 @@ class Cli:
             return '-i(index) is required'
         return  ci.redis.get(params['i'])
 
+
+    def _valid_cmd(self,cmd=''):
+        keys=['shutdown','halt','poweroff','int','rm']
+        cmds=cmd.split('|')
+        for c in cmds:
+            cc=c.strip().split(" ")
+            if len(cc)>0:
+                if cc[0] in keys:
+                    return False
+        return True
+
+
+
     @auth
     def cmd(self,req,resp):
         client_ip=req.env['REMOTE_ADDR']
@@ -504,6 +517,8 @@ class Cli:
             out= params['o']
             if out not in ['json','text']:
                 return '-o(output) must be text or json'
+        if not self._valid_cmd(cmd):
+            return '-c(cmd) is danger'
         if  'async' in params:
             async= params['async']
         lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
