@@ -247,7 +247,7 @@ cpu=`top -b -n 2 -d 1 | grep -w Cpu |awk -F ',|  ' 'END{print $2+$3}'`
 net=`ss -s |grep -w 'Total:'|awk '{print $2}'`
 iowait=`top -n 2 -b -d 1  |grep -w 'Cpu' |awk '{print $6}'|awk -F '%' 'END {print $1}'`
 load=`top -n 2 -d 1  -b |grep -w average: |awk -F',' 'END{printf"%3.2f",$5}'`
-echo "cpu:"$cpu" disk:"$disk" mem:"$mem" net:"$net "iowait:"$iowait "load:"$load
+echo '{"cpu":'$cpu,'"disk":'$disk,'"mem":'$mem,'"net":'$net,'"iowait":'$iowait,'"load":'$load }
         '''
         return shell
 
