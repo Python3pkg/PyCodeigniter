@@ -524,10 +524,25 @@ class Cli:
         lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
         ci.logger.info(json.dumps(lg))
         result={}
+
+        def task(q):
+            while True:
+                if not tqs.empty():
+                    i=tqs.get()
+                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+                else:
+                    break
+
         if ip.find(',')!=-1:
+            import gevent
+            import gevent.queue
+            tqs= gevent.queue.Queue()
             ips=ip.split(',')
             for i in ips:
-                result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+                tqs.put(i)
+                # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+            threads = [gevent.spawn(task,tqs) for i in xrange(50)]
+            gevent.joinall(threads)
         else:
             result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
 
