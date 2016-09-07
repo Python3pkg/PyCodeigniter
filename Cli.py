@@ -544,11 +544,6 @@ class Cli:
         return result
 
 
-
-
-
-
-
     def disableuser(self,req,resp):
         return self._userstatus(req.params['param'],0)
     def enableuser(self,req,resp):
@@ -574,63 +569,73 @@ class Cli:
         return 'ls /data';
 
 
-
-
-
-
-
-
-    def register(self,req,resp):
-            params=self._params(req.params['param'])
-            user=''
-            pwd=''
-            uuid='(error) not login'
-            if  'u' in params:
-                user=params['u']
-            else:
-                return '-u(user) require'
-            if  'p' in params:
-                pwd=params['p']
-            else:
-                return '-p(password) require'
-            data={'user':user}
-
-            if ci.db.scalar("select count(1) as cnt from user where user='{user}'",data)['cnt']>0:
-                return "(error)user exist"
-            data={'user':user,'pwd':ci.md5(pwd) }
-            ci.db.query("insert into user(user,pwd) values('{user}','{pwd}')",data)
-            return 'success'
-
-    def login(self,req,resp):
+    def _check_user(self,req,register=True):
         params=self._params(req.params['param'])
         user=''
         pwd=''
+        opwd=''
         ip=''
-        uuid='(error) user or password error '
         if  'u' in params:
             user=params['u']
         else:
-            return '-u(user) require'
+            return False, '-u(user) require'
         if  'p' in params:
             pwd=params['p']
         else:
-            return '-p(password) require'
-        if  'i' in params:
+            return False, '-p(password) require'
+
+        if 'o' in params:
+            opwd=params['o']
+        if 'i' in params:
             ip=params['i']
+        return True,{'user':user,'pwd':pwd,'opwd':opwd,'ip':ip}
+
+    def register(self,req,resp):
+        ok,data=self._check_user(req)
+        if not ok:
+            return data
+
+        if data['opwd']!='':
+            if self._login(data['user'],data['opwd'],data['ip']):
+                data['pwd']=ci.md5(data['pwd'])
+                ci.db.query("update user set  pwd='{pwd}',ip='{ip}' where user='{user}'",data)
+                return 'success'
+            else:
+                return '-o(old password) is error'
+
+
+        if ci.db.scalar("select count(1) as cnt from user where user='{user}'",data)['cnt']>0:
+            return "(error)user exist"
+        data={'user':data['user'],'pwd':ci.md5(data['pwd']) }
+        ci.db.query("insert into user(user,pwd) values('{user}','{pwd}')",data)
+        return 'success'
+
+
+    def _login(self,user,pwd,ip):
         data={'user':user,'pwd':ci.md5(pwd)}
         is_exist=ci.db.scalar("select status from user where user='{user}' and pwd='{pwd}' limit 1 offset 0",data)
         udata={'user':user,'lasttime':time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.time())),'ip':ip}
         if is_exist!=None:
             if is_exist['status']!=1:
-                return '(error) user not in actvie status'
+                return False
             ci.db.query("update user set logincount=logincount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
-            uuid=str(ci.uuid())
-            # ci.redis.set('login_'+uuid,user)
-            ci.redis.setex('login_'+uuid,5*60,user)
+            return True
         else:
             ci.db.query("update user set logincount=logincount+1,failcount=failcount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
+            return False
 
-        return str(uuid)
+
+
+    def login(self,req,resp):
+        ok,data=self._check_user(req)
+        if not ok:
+            return data
+        if self._login(data['user'],data['pwd'],data['ip']):
+            uuid=ci.uuid()
+            ci.redis.setex('login_'+uuid,5*60,data['user'])
+            return str(uuid)
+        else:
+            return '(error) user or password is error'
 
 
     def shell(self,req,resp):
