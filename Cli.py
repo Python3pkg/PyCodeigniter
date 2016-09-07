@@ -534,18 +534,19 @@ class Cli:
                     gevent.sleep(0)
                 else:
                     break
-
+        ip2uuid={}
+        uuid2ip={}
         if ip.find(',')!=-1:
             import gevent
             import gevent.queue
             tqs= gevent.queue.Queue()
             ips=ip.split(',')
             self.hb.status()
-            ip2uuid={}
-            uuid2ip={}
+
             for row in self.hb.data:
                 for i in row['ips'].split(','):
-                    if i.startswith('10.'):
+                    i=str(i)
+                    if i.strip()!='' and i in ips:
                         ip2uuid[str(i)]=row['uuid']
                         uuid2ip[str(row['uuid'])]=str(i)
             for i in ips:
@@ -565,7 +566,10 @@ class Cli:
             ret=[]
             for i in result:
                 ret.append('-'*80)
-                ret.append(uuid2ip[i])
+                if len(i)<32:
+                    ret.append(i)
+                else:
+                    ret.append(uuid2ip[i])
                 ret.append(result[i])
             if len(failsip)>0:
                 return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
@@ -575,12 +579,15 @@ class Cli:
 
         return result
 
-
+    @auth
     def disableuser(self,req,resp):
         return self._userstatus(req.params['param'],0)
+
+    @auth
     def enableuser(self,req,resp):
         return self._userstatus(req.params['param'],1)
     def _userstatus(self,param, status):
+        # opuser=ci.redis.get('login_'+ci.local.env['HTTP_AUTH_UUID'])
         params=self._params(param)
         user=''
         uuid='(error) not login'
@@ -628,7 +635,8 @@ class Cli:
             return data
 
         if data['opwd']!='':
-            if self._login(data['user'],data['opwd'],data['ip']):
+            ok,msg=self._login(data['user'],data['opwd'],data['ip'])
+            if ok:
                 data['pwd']=ci.md5(data['pwd'])
                 ci.db.query("update user set  pwd='{pwd}',ip='{ip}' where user='{user}'",data)
                 return 'success'
@@ -649,12 +657,12 @@ class Cli:
         udata={'user':user,'lasttime':time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.time())),'ip':ip}
         if is_exist!=None:
             if is_exist['status']!=1:
-                return False
+                return False,'(error)user status disabled'
             ci.db.query("update user set logincount=logincount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
-            return True
+            return True,'success'
         else:
             ci.db.query("update user set logincount=logincount+1,failcount=failcount+1,lasttime='{lasttime}',ip='{ip}' where user='{user}'",udata)
-            return False
+            return False,'(error) user or password is error'
 
 
 
@@ -662,12 +670,13 @@ class Cli:
         ok,data=self._check_user(req)
         if not ok:
             return data
-        if self._login(data['user'],data['pwd'],data['ip']):
+        ok,msg=self._login(data['user'],data['pwd'],data['ip'])
+        if ok:
             uuid=ci.uuid()
             ci.redis.setex('login_'+uuid,5*60,data['user'])
             return str(uuid)
         else:
-            return '(error) user or password is error'
+            return msg
 
 
     def shell(self,req,resp):
