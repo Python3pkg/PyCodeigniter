@@ -576,7 +576,12 @@ class ZbxCli():
         else:
             return '(error) -f(filename) require'
         if 'd' not in argv:
-            argv['d']='/'
+            d='/'
+            try:
+                d=getpass.getuser()
+            except Exception as er:
+                pass
+            argv['d']=d
         if 'o' not in argv:
             argv['o']=argv['f']
         self.util.download(argv['f'],argv['d'],argv['o'])
@@ -590,7 +595,12 @@ class ZbxCli():
         else:
             return '(error) -f(filename) require'
         if 'd' not in argv:
-            argv['d']='/'
+            d='/'
+            try:
+                d=getpass.getuser()
+            except Exception as er:
+                pass
+            argv['d']=d
         self.util.upload(self.entry%"upload", argv['f'],argv['d'])
 
     def help(self,args):
