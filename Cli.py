@@ -477,7 +477,7 @@ class Cli:
 
 
     def _valid_cmd(self,cmd=''):
-        keys=['shutdown','halt','poweroff','int','rm']
+        keys=['shutdown','reboot','halt','poweroff','int','rm']
         cmds=cmd.split('|')
         for c in cmds:
             cc=c.strip().split(" ")
