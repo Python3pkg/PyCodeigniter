@@ -524,12 +524,14 @@ class Cli:
         lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
         ci.logger.info(json.dumps(lg))
         result={}
+        failsip=[]
 
         def task(q):
             while True:
                 if not tqs.empty():
                     i=tqs.get()
                     result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+                    gevent.sleep(0)
                 else:
                     break
 
@@ -538,8 +540,21 @@ class Cli:
             import gevent.queue
             tqs= gevent.queue.Queue()
             ips=ip.split(',')
+            self.hb.status()
+            ip2uuid={}
+            uuid2ip={}
+            for row in self.hb.data:
+                for i in row['ips'].split(','):
+                    if i.startswith('10.'):
+                        ip2uuid[str(i)]=row['uuid']
+                        uuid2ip[str(row['uuid'])]=str(i)
             for i in ips:
-                tqs.put(i)
+                if i in ip2uuid.keys():
+                    tqs.put(ip2uuid[i])
+                else:
+                    failsip.append(i)
+
+
                 # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
             threads = [gevent.spawn(task,tqs) for i in xrange(50)]
             gevent.joinall(threads)
@@ -550,8 +565,10 @@ class Cli:
             ret=[]
             for i in result:
                 ret.append('-'*80)
-                ret.append(i)
+                ret.append(uuid2ip[i])
                 ret.append(result[i])
+            if len(failsip)>0:
+                return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
             return "\n".join(ret)
         elif out=='json':
             return result
