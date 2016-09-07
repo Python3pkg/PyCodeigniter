@@ -447,7 +447,7 @@ class Cli:
                                 return ret.encode('utf-8')
                             except Exception as er:
                                 return ret
-                return '(success) submit command success'
+                return '(success) submit command success,job id:%s'% (index)
             else:
                 return '(unsafe) submit command success '
         except Exception as er:
@@ -579,15 +579,33 @@ class Cli:
 
         return result
 
+
+
+    def _get_login_user(self,req):
+        opuser=ci.redis.get('login_'+ci.local.env['HTTP_AUTH_UUID'])
+        return opuser
+
+    def _is_super_user(self,req):
+        opuser=self._get_login_user(req)
+        super_users=ci.config.get('super_users',['jqzhang'])
+        if opuser in super_users:
+            return True
+        else:
+            return False
     @auth
     def disableuser(self,req,resp):
+        if not self._is_super_user(req):
+            return '(error) user not permit'
         return self._userstatus(req.params['param'],0)
 
     @auth
     def enableuser(self,req,resp):
+        if not self._is_super_user(req):
+            return '(error) user not permit'
         return self._userstatus(req.params['param'],1)
     def _userstatus(self,param, status):
         # opuser=ci.redis.get('login_'+ci.local.env['HTTP_AUTH_UUID'])
+
         params=self._params(param)
         user=''
         uuid='(error) not login'
