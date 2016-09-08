@@ -65,7 +65,7 @@ class HeartBeat(object):
                 pass
 
 
-    def confirm_offline(self):
+    def confirm_offline(self,uuid=''):
         self.check_status()
         offline=[]
         result=[]
@@ -77,6 +77,12 @@ class HeartBeat(object):
         self.data=result
         self.dump_data()
         p=ci.redis.pipeline()
+        if uuid!='':
+            if uuid in offline:
+                ci.redis.srem('uuids',uuid)
+                return 'ok'
+            else:
+                return '(error) %s is not in offline status' %(uuid)
         for off in offline:
             p.srem('uuids',off)
         p.execute()
@@ -128,9 +134,6 @@ class HeartBeat(object):
     def online(self):
         return self._status_line(status='online')
 
-
-    def remove(self,uuid=''):
-        ci.redis.srem('uuids',uuid)
 
 
 
@@ -390,7 +393,11 @@ class Cli:
 
     @auth
     def confirm_offline(self,req,resp):
-        return self.hb.confirm_offline()
+        params=self._params(req.params['param'])
+        if 'uuid' in params:
+            return self.hb.confirm_offline(params['uuid'])
+        else:
+            return self.hb.confirm_offline()
 
 
     def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
