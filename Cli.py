@@ -564,9 +564,10 @@ class Cli:
                 if i in ip2uuid.keys():
                     tqs.put(ip2uuid[i])
                 else:
-                    failsip.append(i)
-
-
+                    if len(i)==36:
+                        tqs.put(i)
+                    else:
+                        failsip.append(i)
                 # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
             threads = [gevent.spawn(task,tqs) for i in xrange(50)]
             gevent.joinall(threads)
