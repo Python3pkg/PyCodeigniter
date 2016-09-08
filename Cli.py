@@ -100,8 +100,6 @@ class HeartBeat(object):
 
     def status(self):
 
-
-
         self.check_status()
         result={'offline':0,'online':0,'count':0}
         for d in self.data:
@@ -131,6 +129,11 @@ class HeartBeat(object):
         return self._status_line(status='online')
 
 
+    def remove(self,uuid=''):
+        ci.redis.srem('uuids',uuid)
+
+
+
     def getetcd(self,param):
         return {'server':['10.3.155.104:4001'],'prefix':'/keeper'}
         return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
@@ -145,7 +148,8 @@ class HeartBeat(object):
         if 'status'  in params.keys():
             status=params['status'].strip()
 
-        if 'uuid' not in params.keys():
+        if 'uuid' not in params.keys() and  len(params['uuid'])<32:
+            self.remove(params['uuid'])
             return '(error) invalid request'
         if 'hostname' in params.keys():
             hostname=params['hostname']
@@ -566,7 +570,7 @@ class Cli:
             ret=[]
             for i in result:
                 ret.append('-'*80)
-                if len(i)<32:
+                if len(i)<32 or len(uuid2ip)==0:
                     ret.append(i)
                 else:
                     ret.append(uuid2ip[i])

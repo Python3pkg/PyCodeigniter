@@ -717,7 +717,7 @@ server_url=http://127.0.0.1:8005
             #    argv['g']="Discovered hosts"
             #if not 't' in argv:
             #    argv['t']="Meizu-System"
-        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)})
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)},timeout=3*60)
         if ret.strip()!='':
             try:
                 ret=json.dumps(json.loads(ret),sort_keys=True,indent=2)
@@ -896,8 +896,15 @@ class ZbxDaemon(Daemon):
             ip = self.util.get_product_uuid()
             # print("watch_commmand",ip,self.etcd_list)
             for host in self.etcd_list:
-                self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
                 content=''
+                try:
+                    content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                except Exception as er:
+                    pass
+                if content!='':
+                    self.feedback_result(ip,host,content)
+                    break
+                self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
                 try:
                     content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
                 except Exception as her:
@@ -1010,7 +1017,7 @@ class ZbxDaemon(Daemon):
                 # self.get_etcd()
                 # self.heartbeat()
                 self.watch_commmand()
-                time.sleep(1)
+                time.sleep(0.5)
             except BaseException as e:
                 pass
                 time.sleep(5)
