@@ -746,6 +746,30 @@ server_url=http://127.0.0.1:8005
         print(result)
         return result
 
+    def md5(self,argv):
+        data= self.util.getopt(sys.argv[1:])
+        if not 's' in data and not 'f' in data:
+            print('-s(string) is required or -f(file name) is required')
+            return
+        if 'f' in data:
+            if os.path.exists(data['f']):
+                with open(data['f'],'rb') as fp:
+                    data['s']=fp.read()
+            else:
+                print('-f(filename) is not found ')
+                return
+        print self.util.md5(data['s'])
+
+    def uuid(self,argv):
+        print(self.util.get_uuid())
+
+    def machine_id(self,argv):
+        print(self.util.get_product_uuid())
+
+    def eval(self,argv):
+        data= self.util.getopt(sys.argv[1:])
+        if 's' in data:
+            print(eval(data['s']))
 
     def remote_server(self,module,action,argv):
         if isinstance(argv,dict):
@@ -759,6 +783,9 @@ server_url=http://127.0.0.1:8005
             #    argv['t']="Meizu-System"
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)})
         return ret
+
+
+
 
     def shell(self,args):
         if len(args)<1:
