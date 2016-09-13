@@ -46,15 +46,15 @@ class HeartBeat(object):
         self.uuids=set()
 
 
+    def ip2uuid(self,data):
+        if 'ips' in data.keys():
+            p=ci.redis.pipeline()
+            for ip in data['ips'].split(','):
+                if ip!='127.0.0.1':
+                    p.sadd(ip,data['uuid'])
+            p.execute()
 
 
-
-    def set_online(self,product_uuid,data):
-        for d in self.data:
-            if d['uuid']==product_uuid:
-                for k,v in data.items():
-                    d[k]=v
-                break
 
     def check_online(self):
         while True:
@@ -168,12 +168,12 @@ class HeartBeat(object):
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             # self.data.append(param)
             ci.redis.set(params['uuid'],json.dumps(param))
-            self.set_online(params['uuid'], param)
+            self.ip2uuid( param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
-            self.set_online(params['uuid'],param)
+            self.ip2uuid(param)
             ci.redis.set(params['uuid'], json.dumps( param))
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
@@ -185,40 +185,6 @@ class HeartBeat(object):
             return {'etcd':etcd, 'salt':salt}
         else:
             return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
-
-    #
-    # # @cache.Cache()
-    # def heartbeat2(self,params):
-    #     status=''
-    #     if 'status'  in params.keys():
-    #         status=params['status'].strip()
-    #
-    #     if 'uuid' not in params.keys():
-    #         return '(error) invalid request'
-    #     objs=self.get_product_uuid(params['uuid'])
-    #     self.uuids.add(params['uuid'])
-    #     salt= str(ci.uuid())
-    #     utime=int(time.time())
-    #     if objs==None or len(objs)==0:
-    #         param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
-    #         # self.data.append(param)
-    #         ci.cache.set(params['uuid'],json.dumps(param))
-    #         self.set_online(params['uuid'], param)
-    #     elif len(objs)==1:
-    #         if 'salt' in objs[0].keys():
-    #             salt=objs[0]['salt']
-    #         param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status}
-    #         self.set_online(params['uuid'],param)
-    #         ci.cache.set(params['uuid'], json.dumps( param))
-    #     else:
-    #         ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
-    #     etcd=self.getetcd(params)
-    #     if status!='':
-    #         return {'etcd':etcd, 'salt':salt}
-    #     else:
-    #         return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
-
-
 
 
 
@@ -450,7 +416,7 @@ class Cli:
                         #     ret=self.cmdkeys[index]
                         #     del self.cmdkeys[index]
 
-                        time.sleep(1)
+                        time.sleep(0.5)
                         ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
                             ci.redis.srem('indexs',index)
@@ -496,7 +462,6 @@ class Cli:
                 if cc[0] in keys:
                     return False
         return True
-
 
 
     @auth
@@ -553,7 +518,6 @@ class Cli:
             tqs= gevent.queue.Queue()
             ips=ip.split(',')
             self.hb.status()
-
             for row in self.hb.data:
                 for i in row['ips'].split(','):
                     i=str(i)
@@ -569,6 +533,101 @@ class Cli:
                     else:
                         failsip.append(i)
                 # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+            threads = [gevent.spawn(task,tqs) for i in xrange(50)]
+            gevent.joinall(threads)
+        else:
+            result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
+
+        if out=='text':
+            ret=[]
+            for i in result:
+                ret.append('-'*80)
+                if len(i)<32 or len(uuid2ip)==0:
+                    ret.append(i)
+                else:
+                    ret.append(uuid2ip[i])
+                ret.append(result[i])
+            if len(failsip)>0:
+                return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
+            return "\n".join(ret)
+        elif out=='json':
+            return result
+
+        return result
+
+
+    @auth
+    def cmd2(self,req,resp):
+        client_ip=req.env['REMOTE_ADDR']
+        op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
+        if not self._is_while_ip(client_ip):
+            return '(error) ip is not in white list.'
+        params=self._params(req.params['param'])
+        cmd=''
+        ip=''
+        user='root'
+        timeout=5
+        async='0'
+        out='text'
+        if  'c' in params:
+            cmd=params['c']
+        else:
+            return '-c(cmd) require'
+        if  'i' in params:
+            ip=params['i']
+        else:
+            return '-i(ip) require'
+        if  't' in params:
+            timeout= float( params['t'])
+        if  'u' in params:
+            user= params['u']
+        if  'o' in params:
+            out= params['o']
+            if out not in ['json','text']:
+                return '-o(output) must be text or json'
+        if not self._valid_cmd(cmd):
+            return '-c(cmd) is danger'
+        if  'async' in params:
+            async= params['async']
+        lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
+        ci.logger.info(json.dumps(lg))
+        result={}
+        failsip=[]
+
+        def task(q):
+            while True:
+                if not tqs.empty():
+                    i=tqs.get()
+                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+                    gevent.sleep(0)
+                else:
+                    break
+        ip2uuid={}
+        uuid2ip={}
+        if ip.find(',')!=-1:
+            import gevent
+            import gevent.queue
+            tqs= gevent.queue.Queue()
+            ips=ip.split(',')
+
+            _uuids= filter(lambda x:len(x)==36,ips)
+            for i in _uuids:
+                uuid2ip[str(i)]=str(i)
+            map(lambda x:tqs.put(str(x)),_uuids)
+            _ips= filter(lambda x:len(x)!=36,ips)
+            p=ci.redis.pipeline()
+            if len(_ips)>0:
+                for i in _ips:
+                    p.smembers(i)
+                lset=p.execute()
+                for i,v in enumerate(_ips):
+                    if len(lset[i])>0:
+                        _uuid= str(lset[i].pop())
+                        ip2uuid[str(v)]=_uuid
+                        tqs.put(_uuid)
+                    else:
+                        failsip.append(str(v))
+
             threads = [gevent.spawn(task,tqs) for i in xrange(50)]
             gevent.joinall(threads)
         else:
