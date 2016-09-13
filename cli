@@ -804,6 +804,12 @@ server_url=http://127.0.0.1:8005
             return '(error) -f(filename) require'
         if 'd' in argv.keys():
             dir=argv['d']
+        else:
+            dir='/'
+            try:
+                dir=getpass.getuser()
+            except Exception as er:
+                pass
         path=script_path+os.path.sep+dir
         # print(path)
         if not os.path.exists(path):
@@ -834,8 +840,12 @@ server_url=http://127.0.0.1:8005
         if is_python:
             cmd=ZbxCommand('/usr/bin/python %s %s'% (fn, " ".join(shell_argv)))
             result=cmd.run(60*60*24)
-        else:
+        elif line.find('python')>0:
             cmd=ZbxCommand('/bin/bash %s %s'% (fn," ".join(shell_argv)))
+            result=cmd.run(60*60*24)
+        else:
+            os.system("chmod +x %s" % (fn))
+            cmd=ZbxCommand('%s %s'% (fn," ".join(shell_argv)))
             result=cmd.run(60*60*24)
         print(result)
 
