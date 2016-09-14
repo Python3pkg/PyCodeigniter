@@ -260,6 +260,14 @@ class Cli:
         cli delenv   -k key -g group 删除环境变量
         cli listenv   -g group -e 1 查看某个组的环境变量 默认 default -e 1 导出
         cli updateenv   -k key -v value -g group (default)更新环境变量
+
+        ########## CMDB ##############
+
+        cli cmdb -t tag=value -f fields 按tag过滤cmdb中的数据,tag参考下面说明,参考下例
+        cli select  -t 'business=flymeos and ip=221.5.97.186'
+             (tag 必须是 business,container,domain,ip,room_en_short,module)
+        cli select  -t 'business=flymeos and ip=221.5.97.186' 取得cmdb中的IP,为批量作基础
+
          '''
         return h
 
@@ -659,7 +667,17 @@ class Cli:
             select=params['f']
         if 't' in params:
             where=params['t']
-        return self._cmdb_api(select,where)
+        if where=='':
+            return '-t(tag) is required'
+        return self._cmdb_api(select.encode('utf-8'),where.encode('utf-8'))
+
+    def load_cmdb(self,req,resp):
+        with open('cmdb.json') as file:
+            js=file.read()
+            ci.redis.set('cmdb',json.dumps(json.loads(js)))
+            return 'ok'
+
+
 
     def _cmdb_api(self,select,where):
         js=ci.redis.get('cmdb')
@@ -671,9 +689,11 @@ class Cli:
         where=''
         if 't' in params:
             where=params['t']
+        if where=='':
+            return '-t(tag) is required'
         rows=self._cmdb_api('ip',where)
-        ips=[]
-        map(lambda x:ips.append(x['ip']),rows)
+        ips=set()
+        map(lambda x:ips.add(x['ip']),rows)
         return ",".join(ips)
 
 
