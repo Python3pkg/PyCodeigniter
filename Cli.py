@@ -533,7 +533,8 @@ class Cli:
                     else:
                         failsip.append(i)
                 # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
-            threads = [gevent.spawn(task,tqs) for i in xrange(50)]
+            tlen=tqs.qsize() if  tqs.qsize()<100 else 100
+            threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
             gevent.joinall(threads)
         else:
             result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
@@ -627,8 +628,8 @@ class Cli:
                         tqs.put(_uuid)
                     else:
                         failsip.append(str(v))
-
-            threads = [gevent.spawn(task,tqs) for i in xrange(50)]
+            tlen=tqs.qsize() if  tqs.qsize()<100 else 100
+            threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
             gevent.joinall(threads)
         else:
             result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
