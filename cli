@@ -936,11 +936,14 @@ class ZbxDaemon(Daemon):
                 content=''
                 try:
                     content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                    logger.info(content)
                 except Exception as er:
                     pass
                 if content!='':
-                    self.feedback_result(ip,host,content)
-                    break
+                    rjson=json.loads(content)
+                    if rjson['node'].get('nodes'):
+                        self.feedback_result(ip,host,content)
+                        break
                 self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
                 try:
                     content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
