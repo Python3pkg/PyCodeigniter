@@ -490,7 +490,7 @@ class Cli:
         else:
             return '-c(cmd) require'
         if  'i' in params:
-            ip=params['i']
+            ip=params['i']+','
         else:
             return '-i(ip) require'
         if  't' in params:
@@ -583,7 +583,7 @@ class Cli:
         else:
             return '-c(cmd) require'
         if  'i' in params:
-            ip=params['i']
+            ip=params['i']+','
         else:
             return '-i(ip) require'
         if  't' in params:
