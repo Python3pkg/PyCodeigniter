@@ -264,7 +264,7 @@ class Cli:
         ########## CMDB ##############
 
         cli cmdb -t tag=value -f fields 按tag过滤cmdb中的数据,tag参考下面说明,参考下例
-        cli select  -t 'business=flymeos and ip=221.5.97.186'
+        cli cmdb  -t 'business=flymeos and ip=221.5.97.186'
              (tag 必须是 business,container,domain,ip,room_en_short,module)
         cli select  -t 'business=flymeos and ip=221.5.97.186' 取得cmdb中的IP,为批量作基础
 
