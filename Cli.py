@@ -651,6 +651,31 @@ class Cli:
 
         return result
 
+    def cmdb(self,req,resp):
+        params=self._params(req.params['param'])
+        select='*'
+        where=''
+        if 'f' in params:
+            select=params['f']
+        if 't' in params:
+            where=params['t']
+        return self._cmdb_api(select,where)
+
+    def _cmdb_api(self,select,where):
+        js=ci.redis.get('cmdb')
+        cmdb=json.loads(js)
+        return ci.loader.helper('DictUtil').query(cmdb,select=select,where=where)
+
+    def select(self,req,resp):
+        params=self._params(req.params['param'])
+        where=''
+        if 't' in params:
+            where=params['t']
+        rows=self._cmdb_api('ip',where)
+        ips=[]
+        map(lambda x:ips.append(x['ip']),rows)
+        return ",".join(ips)
+
 
 
     def _get_login_user(self,req):
