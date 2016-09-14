@@ -936,7 +936,6 @@ class ZbxDaemon(Daemon):
                 content=''
                 try:
                     content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
-                    logger.info(content)
                 except Exception as er:
                     pass
                 if content!='':
