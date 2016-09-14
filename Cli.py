@@ -190,9 +190,10 @@ class HeartBeat(object):
 
     def get_product_uuid(self,ip):
         ret=[]
-        objs=ci.redis.get(ip)
-        if objs!=None:
-            ret.append(json.loads(objs))
+        if len(ip)>16:
+            objs=ci.redis.get(ip)
+            if objs!=None:
+                ret.append(json.loads(objs))
 
         if len(ret)>0 or len(ip)>16:
             return ret
