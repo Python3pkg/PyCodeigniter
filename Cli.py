@@ -168,12 +168,12 @@ class HeartBeat(object):
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
             # self.data.append(param)
             ci.redis.set(params['uuid'],json.dumps(param))
-            self.ip2uuid( param)
+            # self.ip2uuid( param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
             param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
-            self.ip2uuid(param)
+            # self.ip2uuid(param)
             ci.redis.set(params['uuid'], json.dumps( param))
         else:
             ci.logger.error('heartbeat double: uuid=%s,ips=%s'%(params['uuid'],params['ips']))
@@ -521,12 +521,14 @@ class Cli:
                     break
         ip2uuid={}
         uuid2ip={}
+        ipset=set()
         if ip.find(',')!=-1:
             import gevent
             import gevent.queue
             tqs= gevent.queue.Queue()
             ips=ip.split(',')
             self.hb.status()
+
             for row in self.hb.data:
                 for i in row['ips'].split(','):
                     i=str(i)
@@ -535,13 +537,16 @@ class Cli:
                         uuid2ip[str(row['uuid'])]=str(i)
             for i in ips:
                 if i in ip2uuid.keys():
-                    tqs.put(ip2uuid[i])
+                    # tqs.put(ip2uuid[i])
+                    ipset.add(ip2uuid[i])
                 else:
                     if len(i)==36:
-                        tqs.put(i)
+                        # tqs.put(i)
+                        ipset.add(i)
                     else:
                         failsip.append(i)
                 # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+            map(lambda x:tqs.put(x),ipset)
             tlen=tqs.qsize() if  tqs.qsize()<100 else 100
             threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
             gevent.joinall(threads)
@@ -603,7 +608,7 @@ class Cli:
         ci.logger.info(json.dumps(lg))
         result={}
         failsip=[]
-
+        ipset=set()
         def task(q):
             while True:
                 if not tqs.empty():
