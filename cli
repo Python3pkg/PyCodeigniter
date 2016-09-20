@@ -42,6 +42,7 @@ client_filename='/bin/%s' % bin_name
 script_path= tempfile.gettempdir()+ os.path.sep+'script'
 global_debug=False
 
+
 def init_log():
     user=getpass.getuser()
     client_log_filename='/var/log/cli.log'
@@ -73,11 +74,6 @@ logger=init_log()
 
 
 class Daemon(object):
-        """
-        A generic daemon class.
-
-        Usage: subclass the Daemon class and override the run() method
-        """
         def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
                 self.stdin = stdin
                 self.stdout = stdout
@@ -88,11 +84,6 @@ class Daemon(object):
                 self.shellstr=''
 
         def daemonize(self):
-                """
-                do the UNIX double-fork magic, see Stevens' "Advanced
-                Programming in the UNIX Environment" for details (ISBN 0201563177)
-                http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
-                """
                 try:
                         pid = os.fork()
                         if pid > 0:
@@ -101,8 +92,6 @@ class Daemon(object):
                 except OSError as  e:
                         sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
                         sys.exit(1)
-
-                # decouple from parent environment
                 os.chdir("/")
                 os.setsid()
                 os.umask(0)
@@ -137,10 +126,6 @@ class Daemon(object):
                 os.remove(self.pidfile)
 
         def start(self):
-                """
-                Start the daemon
-                """
-                # Check for a pidfile to see if the daemon already runs
                 try:
                         pf = file(self.pidfile,'r')
                         pid = int(pf.read().strip())
@@ -151,8 +136,6 @@ class Daemon(object):
                         message = "pidfile %s already exist. Daemon already running?\n"
                         sys.stderr.write(message % self.pidfile)
                         sys.exit(1)
-
-                # Start the daemon
                 self.daemonize()
                 self.run()
 
@@ -168,12 +151,7 @@ class Daemon(object):
             except Exception as er:
                 pass
 
-
         def stop(self):
-                """
-                Stop the daemon
-                """
-                # Get the pid from the pidfile
                 try:
                         pf = file(self.pidfile,'r')
                         pid = int(pf.read().strip())
@@ -199,12 +177,7 @@ class Daemon(object):
                         else:
                                 print(str(err))
                                 sys.exit(1)
-
-
         def restart(self):
-                """
-                Restart the daemon
-                """
                 self.stop()
                 self.start()
 
@@ -243,6 +216,9 @@ class ZbxCommand(object):
 
 
 class ZbxCommon(object):
+    def __init__(self):
+        self.machine_id=''
+
     def urlencode(self,str):
         reprStr=repr(str).replace(r'\x','%')
         return reprStr[1:-1]
@@ -493,6 +469,8 @@ class ZbxCommon(object):
         return ''.join(ret)
 
     def get_product_uuid(self):
+        if self.machine_id!='' and len(self.machine_id)==36:
+            return self.machine_id
         product_uuid=''
         if os.path.isfile('/sys/devices/virtual/dmi/id/product_uuid'):
             product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
@@ -505,6 +483,7 @@ class ZbxCommon(object):
             else:
                 with open(uuid_file,'r') as file:
                     product_uuid=file.read()
+        self.machine_id=product_uuid
         return product_uuid
 
 
@@ -961,7 +940,7 @@ class ZbxDaemon(Daemon):
 
     def feedback_result(self,ip,host,content):
         try:
-            logger.info("process cmd")
+            # logger.info("process cmd")
             if content == "Not Found":
                 print("no found key")
                 return
@@ -974,9 +953,10 @@ class ZbxDaemon(Daemon):
                 return
 
             if not rjson['node'].get('nodes'):
-                logger.info("no found command")
+                # logger.info("no found command")
                 return
 
+            logger.info("process cmd")
             for cNode in  rjson['node']['nodes']:
                 key = cNode['key']
                 createdIndex = cNode['createdIndex']
