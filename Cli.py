@@ -151,7 +151,7 @@ class HeartBeat(object):
         if 'status'  in params.keys():
             status=params['status'].strip()
 
-        if 'uuid' not in params.keys() and  len(params['uuid'])<32:
+        if 'uuid' not in params.keys() and  len(params['uuid'])!=36:
             self.remove(params['uuid'])
             return '(error) invalid request'
         if 'hostname' in params.keys():
