@@ -41,7 +41,7 @@ class HeartBeat(object):
 
     def __init__(self):
         self.filename='heartbeat.json'
-        self.data=[]# {'uuid','status','utime','salt','ips','hostname','system_os'}
+        self.data=[]# {'uuid','status','utime','salt','ips','hostname','system_os','ip'}
         self.load_data()
         self.uuids=set()
 
@@ -123,6 +123,8 @@ class HeartBeat(object):
         for d in self.data:
             if d['status']==status:
                 d['utime']=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(d['utime']))
+                if 'ips' in d:
+                    del d['ips']
                 result.append(d)
         return  result
 
@@ -148,6 +150,7 @@ class HeartBeat(object):
     def heartbeat(self,params):
         status=''
         hostname=''
+        ip=''
         if 'status'  in params.keys():
             status=params['status'].strip()
 
@@ -156,6 +159,8 @@ class HeartBeat(object):
             return '(error) invalid request'
         if 'hostname' in params.keys():
             hostname=params['hostname']
+        if 'ip' in params.keys():
+            ip=params['ip']
 
         objs=self.get_product_uuid(params['uuid'])
         # self.uuids.add(params['uuid'])
@@ -165,14 +170,14 @@ class HeartBeat(object):
         utime=int(time.time())
 
         if objs==None or len(objs)==0:
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname,'ip':ip}
             # self.data.append(param)
             ci.redis.set(params['uuid'],json.dumps(param))
             # self.ip2uuid( param)
         elif len(objs)==1:
             if 'salt' in objs[0].keys():
                 salt=objs[0]['salt']
-            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname}
+            param={'uuid':params['uuid'],'salt':salt,'ips':params['ips'],'utime':utime,'status':'online','status_os':status,'hostname':hostname,'ip':ip}
             # self.ip2uuid(param)
             ci.redis.set(params['uuid'], json.dumps( param))
         else:
@@ -199,7 +204,7 @@ class HeartBeat(object):
             return ret
         else:
             self.check_status()
-            objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="(ips in %s) or (uuid=%s)"% (ip,ip))
+            objs=ci.loader.helper('DictUtil').query(self.data,select='*',where="((ips in %s) or (uuid=%s))"% (ip,ip))
             return objs
 
     def load_data(self):
@@ -301,7 +306,6 @@ class Cli:
             except Exception as er:
                 pass
 
-
     def md5(self,req,resp):
         params=self._params(req.params['param'])
         return ci.md5(params['s'])
@@ -314,6 +318,7 @@ class Cli:
         if not client_ip in params['ips'].split(','):
             ci.logger.info(client_ip+' attack server ')
             return '(error) invalid client_ip'
+        params['ip']=client_ip
         return self.hb.heartbeat(params)
 
 
@@ -698,6 +703,9 @@ class Cli:
         if where=='':
             return '-t(tag) is required'
         rows=self._cmdb_api('ip',where)
+        rows=filter(lambda x:x['ip'].startswith('10.') or
+                             x['ip'].startswith('172.16') or
+                             x['ip'].startswith('192.168.'),rows )
         ips=set()
         map(lambda x:ips.add(x['ip']),rows)
         return ",".join(ips)
