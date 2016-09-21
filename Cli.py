@@ -116,6 +116,18 @@ class HeartBeat(object):
                 result['online']=result['online']+1
         return  result
 
+    def listclient(self):
+        self.check_status()
+        result=[]
+        fields=['status','uuid','utime','ip','hostname']
+        for row in self.data:
+            d={}
+            for i in fields:
+                d[i]=row[i]
+            d['utime']=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(d['utime']))
+            result.append(d)
+        return  result
+
 
     def _status_line(self,status='offline'):
         self.check_status()
@@ -287,6 +299,9 @@ class Cli:
 
     def uuid(self,req,resp):
         return ci.uuid()
+
+    def listclient(self,req,resp):
+        return self.hb.listclient()
 
     def _check_server(self, address, port):
         import socket
