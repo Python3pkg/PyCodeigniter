@@ -246,7 +246,10 @@ class Cli:
 
     def __init__(self):
         self.cmdkeys={}
-
+        self.HEARTBEAT_LIST_KEY='heartbeats'
+        self.RESULT_LIST_KEY='results'
+        self.TASK_LIST_KEY='indexs'
+        self._cmdb=None
         self.hb=HeartBeat()
 
     def index(self,req,resp):
@@ -292,9 +295,23 @@ class Cli:
     def feedback_result(self,req,resp):
         param=req.params['param']
         data=json.loads(param)
-        if 'index' in data.keys() and str(data['index']) in ci.redis.smembers("indexs"):
+        if 'index' in data.keys() and str(data['index']) in ci.redis.smembers(self.TASK_LIST_KEY):
             # self.cmdkeys[str(data['index'])]=data['result']
-            ci.redis.setex(str(data['index']),60*5,data['result'])
+            try:
+                pl=ci.redis.pipeline()
+                pl.setex(str(data['index']),60*5,data['result'])
+                dd={}
+                dd['utime']=int(time.time())
+                dd['task_id']=str(data['index'])
+                dd['result']=data[u'result']
+                pl.lpush(self.RESULT_LIST_KEY,json.dumps(dd))
+                pl.ltrim(self.RESULT_LIST_KEY,0,20000)
+                pl.execute()
+            except Exception as er:
+                print(er)
+                ci.logger.error(er)
+                pass
+
         ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
 
     def uuid(self,req,resp):
@@ -325,6 +342,9 @@ class Cli:
         params=self._params(req.params['param'])
         return ci.md5(params['s'])
 
+
+
+
     def heartbeat(self,req,resp):
         client_ip=self._client_ip(req)
         params=self._params(req.params['param'])
@@ -334,8 +354,169 @@ class Cli:
             ci.logger.info(client_ip+' attack server ')
             return '(error) invalid client_ip'
         params['ip']=client_ip
+        p=ci.redis.pipeline()
+        p.lpush(self.HEARTBEAT_LIST_KEY,json.dumps(params))
+        p.ltrim(self.HEARTBEAT_LIST_KEY,0,5000)
+        p.execute()
         return self.hb.heartbeat(params)
 
+
+
+    def escape_str(self, string, like = False):
+
+
+        if isinstance(string, dict):
+            for key,val in string.iteritems():
+                string[key] = self.escape_str(val, like)
+            return string
+
+        if isinstance(string,unicode):
+            string=string.encode('utf-8','ignore')
+        else:
+            string=str(string)
+
+        string = ''.join({'"':'\\"', "'":"\\'", "\0":"\\\0", "\\":"\\\\"}.get(c, c) for c in string)
+
+        # escape LIKE condition wildcards
+        if like == True:
+            string = string.replace('%', '\\%')
+            string = string.replace('_', '\\_')
+
+        return string
+
+
+
+    def sql_format(self,sql,param):
+        m=re.findall(r"{\w+}|\:\w+",sql,re.IGNORECASE|re.DOTALL)
+        v=list()
+        def lcmp(x,y):
+            if len(x)>len(y):
+                return -1
+            else:
+                return 1
+        ks=[]
+        for i in m:
+            key,num=re.subn(r"^'?{|}'?$|^\:",'',i)
+            sql=sql.replace(i,self.escape_str(param[key]))
+
+        return sql
+
+    def hb2db(self,req,resp):
+        if self._cmdb==None:
+            self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+        rows=[]
+        batlen=1
+        while True:
+            try:
+                now=time.time()
+                snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
+                js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
+                if js!=None:
+                    row=json.loads(js)
+                    rows.append(row)
+                    if len(rows)>=batlen:
+                        sqls=[]
+                        for row in rows:
+                            data={'uuid':row['uuid'],'status':'online','utime':snow,'hostname':row['hostname'],'ip':row['ip']}
+                            sql='''
+                            ('{uuid}',
+                            '{hostname}',
+                            '{ip}',
+                            '{utime}',
+                            '{status}'
+                            )
+                         '''
+                            sqls.append( self.sql_format(sql,data))
+                        fullsql='REPLACE INTO ops_heartbeat (UUID, hostname, ip, utime, STATUS) values'+ ",".join(sqls)
+                        self._cmdb.query(fullsql)
+                        batlen=int(ci.redis.llen(self.HEARTBEAT_LIST_KEY) / 10)
+                        if batlen<=0:
+                            batlen=1
+                        rows=[]
+                else:
+                    time.sleep(5)
+            except Exception as er:
+                ci.logger.error(er)
+        return 'ok'
+
+
+    def result2db(self,req,resp):
+        if self._cmdb==None:
+            self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+        rows=[]
+        batlen=1
+        while True:
+            try:
+                now=time.time()
+                snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
+                js= ci.redis.rpop(self.RESULT_LIST_KEY)
+                if js!=None:
+                    row=json.loads(js)
+                    rows.append(row)
+                    if len(rows)>=batlen:
+                        update_sqls=[]
+                        update_data=[]
+                        insert_sqls=[]
+                        insert_data=[]
+                        for row in rows:
+                            insert_sql='''
+
+                                INSERT INTO ops_results
+                                    (
+                                    task_id,
+                                    cmd,
+                                    ctime,
+                                    op_user,
+                                    uuid
+                                    )
+                                    VALUES
+                                    (
+                                    '{task_id}',
+                                    '{cmd}',
+                                    '{ctime}',
+                                    '{op_user}',
+                                    '{uuid}'
+                                    )
+
+                         '''
+
+                            update_sql='''
+
+
+                                UPDATE ops_results
+                                    SET
+                                    result = '{result}' ,
+                                    utime = '{utime}'
+                                    WHERE
+                                    task_id = '{task_id}'
+
+                            '''
+                            if 'user' in row:
+                                data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid']}
+                                # insert_sqls.append(self.sql_format( insert_sql,data))
+                                insert_data.append(data)
+                            else:
+                                data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
+                                # update_sqls.append(self.sql_format( update_sql,data))
+                                update_data.append(data)
+
+
+                        print ";".join(insert_sqls)
+                        print ";".join(update_sqls)
+
+                        if len(insert_data)>0:
+                            self._cmdb.batch(insert_sql,insert_data)
+                        if len(update_data)>0:
+                            self._cmdb.batch(update_sql,update_data)
+                        batlen=int(ci.redis.llen(self.RESULT_LIST_KEY) / 10)
+                        if batlen<=0:
+                            batlen=1
+                        rows=[]
+                else:
+                    time.sleep(2)
+            except Exception as er:
+                ci.logger.error(er)
+        return 'ok'
 
 
     def status(self,req,resp):
@@ -415,8 +596,9 @@ class Cli:
 
             if puuid=='' or salt=='':
                 return '(error)client not online'
-
-            data={'value': json.dumps( {'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}) }
+            cmd="su '%s' -c '%s'" %(user, cmd.encode('utf-8'))
+            data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
+            data={'value': json.dumps( data_raw) }
             data=urllib.urlencode(data)
             req = urllib2.Request(
                     url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
@@ -427,17 +609,30 @@ class Cli:
             ret=json.loads(urllib2.urlopen(req,timeout=10).read())
 
 
+
             # print ret
             index=str(ret['node']['createdIndex'])
             self.cmdkeys[index]=''
-            ci.redis.sadd('indexs',index)
+            #ci.redis.sadd('indexs',index)
+            # pl=ci.redis.pipeline()
+            ci.redis.sadd(self.TASK_LIST_KEY,index)
+
             start=time.time()
             if async=='1':
                 return index
             if json.loads(ret['node']['value'])['cmd']==cmd:
+                del data_raw['md5']
+                del data_raw['timeout']
+                data_raw['task_id']=index
+                data_raw['ctime']=int(start)
+                data_raw['uuid']=ip
+                ci.redis.lpush(self.RESULT_LIST_KEY,json.dumps(data_raw))
+
+                print(data_raw)
+                # pl.execute()
                 while True:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
-                        ci.redis.srem('indexs',index)
+                        ci.redis.srem(self.TASK_LIST_KEY,index)
                         break
                     else:
                         # time.sleep(0.1)
@@ -448,10 +643,12 @@ class Cli:
                         time.sleep(0.5)
                         ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
-                            ci.redis.srem('indexs',index)
+                            ci.redis.srem(self.TASK_LIST_KEY,index)
                             try:
                                 return ret.encode('utf-8')
                             except Exception as er:
+                                # if isinstance(ret,basestring):
+                                #     return json.dumps(ret)
                                 return ret
                 return '(success) submit command success,job id:%s'% (index)
             else:
@@ -463,6 +660,14 @@ class Cli:
 
     def _is_while_ip(self,ip):
         wip=ci.config.get('white_ips',['127.0.0.1'])
+        if ip in wip:
+            return True
+        else:
+            return False
+        pass
+
+    def _is_web_while_ip(self,ip):
+        wip=ci.config.get('web_white_ips',['127.0.0.1'])
         if ip in wip:
             return True
         else:
@@ -493,12 +698,35 @@ class Cli:
         return True
 
 
+    def web_cmd(self,req,resp):
+        client_ip=req.env['REMOTE_ADDR']
+        if not self._is_web_while_ip(client_ip):
+            return '(error) ip is not in white list.'
+        params=self._params(req.params['param'])
+        md5=params['md5']
+        timestamp=params['ts']
+        key=ci.config.get('web_key')
+        if ci.md5(key+str(timestamp))!=md5:
+            return '(error) sign error!'
+        return self._inner_cmd(req,resp)
+
     @auth
     def cmd(self,req,resp):
         client_ip=req.env['REMOTE_ADDR']
         op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
         if not self._is_while_ip(client_ip):
             return '(error) ip is not in white list.'
+        params=self._params(req.params['param'])
+
+        return self._inner_cmd(req,resp)
+
+
+    def _inner_cmd(self,req,resp):
+        client_ip=req.env['REMOTE_ADDR']
+        # op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
+        # if not self._is_while_ip(client_ip):
+        #     return '(error) ip is not in white list.'
+        op_user=''
         params=self._params(req.params['param'])
         cmd=''
         ip=''
