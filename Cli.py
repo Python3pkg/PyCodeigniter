@@ -356,6 +356,8 @@ class Cli:
         if not client_ip in params['ips'].split(','):
             ci.logger.info(client_ip+' attack server ')
             return '(error) invalid client_ip'
+        if not 'hostname' in params.keys():
+            params['hostname']='unknown'
         params['ip']=client_ip
         p=ci.redis.pipeline()
         p.lpush(self.HEARTBEAT_LIST_KEY,json.dumps(params))
