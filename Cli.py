@@ -252,6 +252,8 @@ class Cli:
         self.CMDB_OPTION_PREFIX='cmdb_options_'
         self._cmdb=None
         self.hb=HeartBeat()
+        self.has_hd2db=False
+        self.has_result2db=False
 
     def index(self,req,resp):
         return "ok"
@@ -402,121 +404,149 @@ class Cli:
 
         return sql
 
+
     def hb2db(self,req,resp):
-        if self._cmdb==None:
-            self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
-        rows=[]
-        batlen=1
-        while True:
-            try:
-                now=time.time()
-                snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
-                js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
-                if js!=None:
-                    row=json.loads(js)
-                    rows.append(row)
-                    if len(rows)>=batlen:
-                        sqls=[]
-                        for row in rows:
-                            data={'uuid':row['uuid'],'status':'online','utime':snow,'hostname':row['hostname'],'ip':row['ip']}
+        return  self._hb2db()
+
+    def _hb2db(self):
+        if self.has_hd2db:
+            return 'ok'
+        else:
+            self.has_hd2db=True
+        def _tmp():
+            if self._cmdb==None:
+                self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+            rows=[]
+            batlen=1
+            while True:
+                try:
+                    now=time.time()
+                    snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
+                    js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
+                    if js!=None:
+                        row=json.loads(js)
+                        rows.append(row)
+                        if len(rows)>=batlen:
+                            sqls=[]
+                            ds=[]
+                            for row in rows:
+                                data={'uuid':row['uuid'],'status':'online','utime':snow,'hostname':row['hostname'],'ip':row['ip']}
+                                ds.append(data)
+
                             sql='''
-                            ('{uuid}',
-                            '{hostname}',
-                            '{ip}',
-                            '{utime}',
-                            '{status}'
-                            )
-                         '''
-                            sqls.append( self.sql_format(sql,data))
-                        fullsql='REPLACE INTO ops_heartbeat (UUID, hostname, ip, utime, STATUS) values'+ ",".join(sqls)
-                        self._cmdb.query(fullsql)
-                        batlen=int(ci.redis.llen(self.HEARTBEAT_LIST_KEY) / 10)
-                        if batlen<=0:
-                            batlen=1
-                        rows=[]
-                else:
-                    time.sleep(5)
-            except Exception as er:
-                ci.logger.error(er)
-        return 'ok'
 
-
-    def result2db(self,req,resp):
-        if self._cmdb==None:
-            self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
-        rows=[]
-        batlen=1
-        while True:
-            try:
-                now=time.time()
-                snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
-                js= ci.redis.rpop(self.RESULT_LIST_KEY)
-                if js!=None:
-                    row=json.loads(js)
-                    rows.append(row)
-                    if len(rows)>=batlen:
-                        update_sqls=[]
-                        update_data=[]
-                        insert_sqls=[]
-                        insert_data=[]
-                        for row in rows:
-                            insert_sql='''
-
-                                INSERT INTO ops_results
-                                    (
-                                    task_id,
-                                    cmd,
-                                    ctime,
-                                    op_user,
-                                    uuid
-                                    )
-                                    VALUES
-                                    (
-                                    '{task_id}',
-                                    '{cmd}',
-                                    '{ctime}',
-                                    '{op_user}',
-                                    '{uuid}'
-                                    )
-
-                         '''
-
-                            update_sql='''
-
-
-                                UPDATE ops_results
-                                    SET
-                                    result = '{result}' ,
-                                    utime = '{utime}'
-                                    WHERE
-                                    task_id = '{task_id}'
-
+                            REPLACE INTO ops_heartbeat
+                                (UUID,
+                                hostname,
+                                ip,
+                                utime,
+                                STATUS
+                                )
+                                VALUES
+                                ('{uuid}',
+                                '{hostname}',
+                                '{ip}',
+                                '{utime}',
+                                '{status}'
+                                )
                             '''
-                            if 'user' in row:
-                                data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid']}
-                                # insert_sqls.append(self.sql_format( insert_sql,data))
-                                insert_data.append(data)
-                            else:
-                                data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
-                                # update_sqls.append(self.sql_format( update_sql,data))
-                                update_data.append(data)
+
+                            self._cmdb.batch(sql,ds)
+                            batlen=int(ci.redis.llen(self.HEARTBEAT_LIST_KEY) / 10)
+                            if batlen<=0:
+                                batlen=1
+                            rows=[]
+                    else:
+                        time.sleep(1)
+                except Exception as er:
+                    ci.logger.error(er)
+        threading.Thread(target=_tmp).start()
+        return 'ok'
+    def result2db(self,req,resp):
+        return self._result2db()
+
+    def _result2db(self):
+        if self.has_result2db:
+            return 'ok'
+        else:
+            self.has_result2db=True
+        def _tmp():
+            if self._cmdb==None:
+                self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+            rows=[]
+            batlen=1
+            while True:
+                try:
+                    now=time.time()
+                    snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
+                    js= ci.redis.rpop(self.RESULT_LIST_KEY)
+                    if js!=None:
+                        row=json.loads(js)
+                        rows.append(row)
+                        if len(rows)>=batlen:
+                            update_sqls=[]
+                            update_data=[]
+                            insert_sqls=[]
+                            insert_data=[]
+                            for row in rows:
+                                insert_sql='''
+
+                                    INSERT INTO ops_results
+                                        (
+                                        task_id,
+                                        cmd,
+                                        ctime,
+                                        op_user,
+                                        uuid
+                                        )
+                                        VALUES
+                                        (
+                                        '{task_id}',
+                                        '{cmd}',
+                                        '{ctime}',
+                                        '{op_user}',
+                                        '{uuid}'
+                                        )
+
+                             '''
+
+                                update_sql='''
 
 
-                        print ";".join(insert_sqls)
-                        print ";".join(update_sqls)
+                                    UPDATE ops_results
+                                        SET
+                                        result = '{result}' ,
+                                        utime = '{utime}'
+                                        WHERE
+                                        task_id = '{task_id}'
 
-                        if len(insert_data)>0:
-                            self._cmdb.batch(insert_sql,insert_data)
-                        if len(update_data)>0:
-                            self._cmdb.batch(update_sql,update_data)
-                        batlen=int(ci.redis.llen(self.RESULT_LIST_KEY) / 10)
-                        if batlen<=0:
-                            batlen=1
-                        rows=[]
-                else:
-                    time.sleep(2)
-            except Exception as er:
-                ci.logger.error(er)
+                                '''
+                                if 'user' in row:
+                                    data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid']}
+                                    # insert_sqls.append(self.sql_format( insert_sql,data))
+                                    insert_data.append(data)
+                                else:
+                                    data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
+                                    # update_sqls.append(self.sql_format( update_sql,data))
+                                    update_data.append(data)
+
+
+                            print ";".join(insert_sqls)
+                            print ";".join(update_sqls)
+
+                            if len(insert_data)>0:
+                                self._cmdb.batch(insert_sql,insert_data)
+                            if len(update_data)>0:
+                                self._cmdb.batch(update_sql,update_data)
+                            batlen=int(ci.redis.llen(self.RESULT_LIST_KEY) / 10)
+                            if batlen<=0:
+                                batlen=1
+                            rows=[]
+                    else:
+                        time.sleep(1)
+                except Exception as er:
+                    ci.logger.error(er)
+        threading.Thread(target=_tmp).start()
         return 'ok'
 
 
