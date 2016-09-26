@@ -249,6 +249,7 @@ class Cli:
         self.HEARTBEAT_LIST_KEY='heartbeats'
         self.RESULT_LIST_KEY='results'
         self.TASK_LIST_KEY='indexs'
+        self.CMDB_OPTION_PREFIX='cmdb_options_'
         self._cmdb=None
         self.hb=HeartBeat()
 
@@ -931,6 +932,66 @@ class Cli:
             ci.redis.set('cmdb',json.dumps(json.loads(js)))
             return 'ok'
 
+    def load_cmdb2db(self,req,resp):
+        if self._cmdb==None:
+            self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+        ret=ci.redis.get('cmdb')
+        if ret!=None:
+
+            rows=json.loads(ret)
+            sql='''
+
+                REPLACE INTO ops_cmdb
+                    (room,
+                    business,
+                    container,
+                    module,
+                    ip,
+                    domain
+                    )
+                    VALUES
+                    ('{room_en_short}',
+                    '{business}',
+                    '{container}',
+                    '{module}',
+                    '{ip}',
+                    '{domain}'
+
+                    )
+                '''
+            # self._cmdb.batch(sql,rows)
+            for row in rows:
+                try:
+                    self._cmdb.query(sql,row)
+                except Exception as er:
+                    pass
+            return 'ok'
+        else:
+            return '(error) cmdb is None'
+
+
+    def _cmdb_options(self,type):
+        ret=ci.redis.get(self.CMDB_OPTION_PREFIX+type)
+        if ret!=None:
+            return json.loads(ret)
+        else:
+            js=ci.redis.get('cmdb')
+            rows=json.loads(js)
+            t_set=set()
+            for row in rows:
+                if type in row and row[type]!=None and row[type]!='':
+                    t_set.add(row[type])
+            l_set=list(t_set)
+            ci.redis.set(self.CMDB_OPTION_PREFIX+type,json.dumps(list(l_set)))
+            return sorted(l_set)
+
+    def cmdb_options(self,req,resp):
+        params=self._params(req.params['param'])
+        rows= self._cmdb_options(params['t'])
+        ret=[]
+        for val in rows:
+            ret.append({'text':val,'value':val})
+        return {'reply':ret}
 
 
     def _cmdb_api(self,select,where):
