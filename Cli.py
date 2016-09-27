@@ -629,7 +629,7 @@ class Cli:
 
             if puuid=='' or salt=='':
                 return '(error)client not online'
-            cmd="su '%s' -c '%s'" %(user, cmd.encode('utf-8'))
+            cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
             data={'value': json.dumps( data_raw) }
             data=urllib.urlencode(data)
