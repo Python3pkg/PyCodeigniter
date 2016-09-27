@@ -309,6 +309,7 @@ class Cli:
                 dd['result']=data[u'result']
                 pl.lpush(self.RESULT_LIST_KEY,json.dumps(dd))
                 pl.ltrim(self.RESULT_LIST_KEY,0,20000)
+                pl.srem(self.TASK_LIST_KEY,str(data['index']))
                 pl.execute()
             except Exception as er:
                 print(er)
@@ -665,7 +666,8 @@ class Cli:
                 # pl.execute()
                 while True:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
-                        ci.redis.srem(self.TASK_LIST_KEY,index)
+                        #ci.redis.srem(self.TASK_LIST_KEY,index)
+                        pass
                         break
                     else:
                         # time.sleep(0.1)
@@ -764,7 +766,7 @@ class Cli:
         cmd=''
         ip=''
         user='root'
-        timeout=5
+        timeout=25
         async='0'
         out='text'
         if  'c' in params:
