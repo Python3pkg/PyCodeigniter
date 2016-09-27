@@ -65,7 +65,7 @@ def init_log():
         try:
             os.popen('chattr -a %s'%(client_log_filename)).read()
             os.chmod(client_log_filename,0777)
-            os.popen('chattr -a %s'%(client_log_filename)).read()
+            os.popen('chattr +a %s'%(client_log_filename)).read()
         except Exception as er:
             pass
     return logger
@@ -472,10 +472,10 @@ class ZbxCommon(object):
         if self.machine_id!='' and len(self.machine_id)==36:
             return self.machine_id
         product_uuid=''
-        if os.path.isfile('/sys/devices/virtual/dmi/id/product_uuid'):
-            product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
+        # if os.path.isfile('/sys/devices/virtual/dmi/id/product_uuid'):
+        #     product_uuid=self.execute('cat /sys/devices/virtual/dmi/id/product_uuid').strip()
         if product_uuid=="":
-            uuid_file='/etc/uuid'
+            uuid_file='/etc/machine_id'
             if not os.path.exists(uuid_file):
                 product_uuid=self.get_uuid()
                 with open(uuid_file,'w') as file:
