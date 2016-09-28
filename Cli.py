@@ -306,6 +306,8 @@ class Cli:
                 dd={}
                 dd['utime']=int(time.time())
                 dd['task_id']=str(data['index'])
+                if data['result']=='13800138000':
+                    dd['result']='(error) time out'
                 dd['result']=data[u'result']
                 pl.lpush(self.RESULT_LIST_KEY,json.dumps(dd))
                 pl.ltrim(self.RESULT_LIST_KEY,0,20000)
@@ -316,7 +318,7 @@ class Cli:
                 ci.logger.error(er)
                 pass
 
-        ci.logger.info("ip:%s,result:\n%s"%(data['ip'],data['result']))
+        ci.logger.info("index:%s,ip:%s,result:\n%s"%(str(data['index']), data['ip'],data['result']))
 
     def uuid(self,req,resp):
         return ci.uuid()
@@ -417,12 +419,13 @@ class Cli:
         else:
             self.has_hd2db=True
         def _tmp():
-            if self._cmdb==None:
-                self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+
             rows=[]
             batlen=1
             while True:
                 try:
+                    if self._cmdb==None:
+                        self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
                     now=time.time()
                     snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
@@ -474,25 +477,26 @@ class Cli:
         else:
             self.has_result2db=True
         def _tmp():
-            if self._cmdb==None:
-                self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
             rows=[]
             batlen=1
+            inner_timer=time.time()
             while True:
                 try:
+                    if self._cmdb==None:
+                        self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
                     now=time.time()
                     snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.rpop(self.RESULT_LIST_KEY)
-                    if js!=None:
+                    if js!=None or len(rows)>0:
                         row=json.loads(js)
                         rows.append(row)
-                        if len(rows)>=batlen:
+                        if len(rows)>=batlen or (len(rows)>0 and time.time()-inner_timer>5 ):
+                            inner_timer=time.time()
                             update_sqls=[]
                             update_data=[]
                             insert_sqls=[]
                             insert_data=[]
-                            for row in rows:
-                                insert_sql='''
+                            insert_sql='''
 
                                     INSERT INTO ops_results
                                         (
@@ -512,8 +516,7 @@ class Cli:
                                         )
 
                              '''
-
-                                update_sql='''
+                            update_sql='''
 
 
                                     UPDATE ops_results
@@ -524,23 +527,20 @@ class Cli:
                                         task_id = '{task_id}'
 
                                 '''
+                            for row in rows:
                                 if 'user' in row:
                                     data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid']}
-                                    # insert_sqls.append(self.sql_format( insert_sql,data))
                                     insert_data.append(data)
                                 else:
                                     data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
-                                    # update_sqls.append(self.sql_format( update_sql,data))
                                     update_data.append(data)
-
-
-                            print ";".join(insert_sqls)
-                            print ";".join(update_sqls)
 
                             if len(insert_data)>0:
                                 self._cmdb.batch(insert_sql,insert_data)
+                                time.sleep(0.1)
                             if len(update_data)>0:
                                 self._cmdb.batch(update_sql,update_data)
+                                time.sleep(0.1)
                             batlen=int(ci.redis.llen(self.RESULT_LIST_KEY) / 10)
                             if batlen<=0:
                                 batlen=1
@@ -548,6 +548,7 @@ class Cli:
                     else:
                         time.sleep(1)
                 except Exception as er:
+                    ci.logger.error(rows)
                     ci.logger.error(er)
         threading.Thread(target=_tmp).start()
         return 'ok'
@@ -589,12 +590,13 @@ class Cli:
         rows=self.hb.offline()
         ips=set()
         for row in rows:
-            _ips=row['ips'].split(',')
-            for i in _ips:
-                if i.startswith('10.'):
-                    if self._check_server(i,port):
-                        ips.add(i)
-                        break
+            ips.add(str(row['ip']))
+            # _ips=row['ip'].split(',')
+            # for i in _ips:
+            #     if i.startswith('10.'):
+            #         if self._check_server(i,port):
+            #             ips.add(i)
+            #             break
         ret=''
         for i in ips:
             ret+="repair ip:"+ i+"\n" +self._repair(i)
@@ -662,7 +664,7 @@ class Cli:
                 data_raw['uuid']=ip
                 ci.redis.lpush(self.RESULT_LIST_KEY,json.dumps(data_raw))
 
-                print(data_raw)
+
                 # pl.execute()
                 while True:
                     if (time.time()-start> timeout) or self.cmdkeys[index]!='':
@@ -678,7 +680,7 @@ class Cli:
                         time.sleep(0.5)
                         ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
-                            ci.redis.srem(self.TASK_LIST_KEY,index)
+                            #ci.redis.srem(self.TASK_LIST_KEY,index)
                             try:
                                 return ret.encode('utf-8')
                             except Exception as er:
