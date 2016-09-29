@@ -481,7 +481,7 @@ class Cli:
             self.has_result2db=True
         def _tmp():
             rows=[]
-            batlen=1
+            batlen=20
             inner_timer=time.time()
             while True:
                 try:
@@ -493,7 +493,7 @@ class Cli:
                     if js!=None or len(rows)>0:
                         row=json.loads(js)
                         rows.append(row)
-                        if len(rows)>=batlen or (len(rows)>0 and time.time()-inner_timer>5 ):
+                        if len(rows)>=batlen or (len(rows)>0 and time.time()-inner_timer>3):
                             inner_timer=time.time()
                             update_sqls=[]
                             update_data=[]
@@ -539,15 +539,17 @@ class Cli:
 
                             if len(insert_data)>0:
                                 self._cmdb.batch(insert_sql,insert_data)
+                                time.sleep(0)
                             if len(update_data)>0:
                                 self._cmdb.batch(update_sql,update_data)
-                            cnt=ci.redis.llen(self.RESULT_LIST_KEY)
-                            if cnt==None:
-                                cnt=0
-                            if cnt>50:
-                                batlen=int(cnt/5)
-                            else:
-                                batlen=cnt
+                                time.sleep(0)
+                            # cnt=ci.redis.llen(self.RESULT_LIST_KEY)
+                            # if cnt==None:
+                            #     cnt=0
+                            # if cnt>50:
+                            #     batlen=int(cnt/5)
+                            # else:
+                            #     batlen=cnt
                             rows=[]
                     else:
                         time.sleep(1)
