@@ -368,48 +368,6 @@ class Cli:
         p.execute()
         return self.hb.heartbeat(params)
 
-
-
-    def escape_str(self, string, like = False):
-
-
-        if isinstance(string, dict):
-            for key,val in string.iteritems():
-                string[key] = self.escape_str(val, like)
-            return string
-
-        if isinstance(string,unicode):
-            string=string.encode('utf-8','ignore')
-        else:
-            string=str(string)
-
-        string = ''.join({'"':'\\"', "'":"\\'", "\0":"\\\0", "\\":"\\\\"}.get(c, c) for c in string)
-
-        # escape LIKE condition wildcards
-        if like == True:
-            string = string.replace('%', '\\%')
-            string = string.replace('_', '\\_')
-
-        return string
-
-
-
-    def sql_format(self,sql,param):
-        m=re.findall(r"{\w+}|\:\w+",sql,re.IGNORECASE|re.DOTALL)
-        v=list()
-        def lcmp(x,y):
-            if len(x)>len(y):
-                return -1
-            else:
-                return 1
-        ks=[]
-        for i in m:
-            key,num=re.subn(r"^'?{|}'?$|^\:",'',i)
-            sql=sql.replace(i,self.escape_str(param[key]))
-
-        return sql
-
-
     def hb2db(self,req,resp):
         return  self._hb2db()
 
@@ -678,11 +636,6 @@ class Cli:
                         pass
                         break
                     else:
-                        # time.sleep(0.1)
-                        # if self.cmdkeys[index]!='':
-                        #     ret=self.cmdkeys[index]
-                        #     del self.cmdkeys[index]
-
                         time.sleep(0.5)
                         ret=ci.redis.get(index)
                         if ret!='' and ret!=None:
@@ -766,9 +719,6 @@ class Cli:
 
     def _inner_cmd(self,req,resp,web_cmd=False):
         client_ip=req.env['REMOTE_ADDR']
-        # op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
-        # if not self._is_while_ip(client_ip):
-        #     return '(error) ip is not in white list.'
         op_user=''
         params=self._params(req.params['param'])
         cmd=''
@@ -1108,13 +1058,6 @@ class Cli:
         else:
             return "#!/bin/bash\n echo '(error) file not found'"
 
-    # def shell(self,file='',param='',dir='shell'):
-    #     dir=dir.replace('..','').replace('.','').replace('/','')
-    #     path= 'files'+ os.path.sep+ dir+ os.path.sep + file
-    #     if os.path.isfile(path):
-    #         return open(path,'rb').read()
-    #     else:
-    #         return "#!/bin/bash\n echo '(error) file not found'"
 
     def upgrade(self,req,resp):
         if os.path.isfile('cli.mini'):
@@ -1429,17 +1372,17 @@ class Cli:
         if 'r' in params:
             remark=params['r']
         sql='''INSERT INTO doc
-	(
-	cmd,
-	doc,
-	remark
-	)
-	VALUES
-	(
-	'{cmd}',
-	'{doc}',
-	'{remark}'
-	)'''
+            (
+            cmd,
+            doc,
+            remark
+            )
+            VALUES
+            (
+            '{cmd}',
+            '{doc}',
+            '{remark}'
+            )'''
         ci.db.query(sql,{'cmd':cmd,'doc':doc,'remark':remark})
         #ci.db.insert('doc',{'cmd':cmd,'doc':doc,'remark':remark})
         return 'ok'
@@ -1614,132 +1557,14 @@ class Cli:
                 s.add(k.encode('utf-8')+"=%s"% tags[k].encode('utf-8') )
         return "\n".join(s)
 
-    @cache.Cache(ttl=3600,key="#p[0]",md5=False)
-    def _cache_table(self,table):
-        print('xxxxxx')
-        return ci.db.query("select * from %s" % table)
-
-
-    def aaa(self,req,resp):
-        print ci.loader.helper('DictUtil')
-        rows=ci.db.query('select * from hosts')
-        print rows
-        #return ci.loader.helper('DictUtil').query(rows,'select aa,bb,ip where ip like 172.17.140.133')
-        return ci.loader.helper('DictUtil').query({"xx":"x"},"select aa,bb,ip where ip like '' ")
-
-    def abc(self,req,resp):
-        return u'你好'
-        s=time.time()
-        for i in xrange(1,100000):
-            self._cache_table('hosts')[0]
-        print(time.time()-s)
-        return 'abc'
-
-
-    def test2(self,req,resp):
-        # pass
-        print ci.db.query("select * from objs where ip='{ip}'",{'ip':'172.17.140.133'})
-
-
-
-
-    def test3(self,req,resp):
-        rows=self._cache_table('hosts')
-        for index,row in enumerate(rows):
-            r=json.loads(row['body'])
-
-            rows[index]=r
-        # import pymongo
-        #
-        # conn = pymongo.MongoClient("127.0.0.1",27017)
-        # db = conn.test
-        # for row in rows:
-        #
-        #     db.test.insert_one(row)
-
-
-
-    def test(self,req,resp):
-
-        # from data_query_engine import DataQueryEngine
-
-        rows=self._cache_table('hosts')
-        # rows=self.db.query('select * from hosts limit 10')
-        # rows=self.db.query('select * from hosts ')
-        start=time.time()
-        data=[]
-
-        for index,row in enumerate(rows):
-            r=json.loads(row['body'])
-
-            rows[index]=r
-
-
-        # print(rows)
-        # query = DataQueryEngine(rows, "select * from ")
-        # return  query.get_results()
-
-
-
-
-        # query = Sql4Json(json.dumps({"data":rows}), "select ip,business from / where room_en_short=='GZ-NS'")
-        # query = Sql4Json(json.dumps({"data":rows}), "select * from data")
-        # query = Sql4Json(json.dumps(rows), "select ip,business from / where  module > 'sync-web'")
-
-
-        # query = DataQueryEngine(rows, "select * from  /  where  module == 'sync-web'")
-        # return  query.get_results()
-        #
-        # print time.time()-start
-        # results_dictionary = query.get_results()
-        # return results_dictionary
-
-
-
-
-
-
 
     def _search_body(self,table='', exp=''):
-        # assert  table!=''
-        # exp=exp.replace('&&',' and ')
-        # exp=exp.replace('||',' or ')
-        # rows=ci.db.query("select * from %s"%table)
-        # ret=[]
-        # def tmp(a):
-        #     return ('('+(a.group(0)).encode("utf-8").replace("'",'')+')').decode('utf-8')
-        # exp=re.sub(r'(\w+\s*(=|like)\s*[\'](?:[^\']+)[\'])|(\w+(=|like)\s*(?:[^\s]+)\s*)',tmp,exp)
-        # print(exp)
-        # s=time.time()
         rows=ci.db.query("select * from %s"%table)
-
         ret=[]
-
-        # for row in rows:
-        #     row['ip']=row['ip']
-
-
-
         rows=map(lambda row: json.loads( row['body']) ,rows)
-
-
         dutil=ci.loader.helper('DictUtil')
-
-        print(rows)
-
-
-
         return  dutil.query( rows,select="name", where=exp)
 
-
-        # expmatch= dutil.query( rows, exp)
-        #
-        # print len(rows)
-        #
-        #
-        # ret = filter(lambda row: expmatch.calc(data_dict=json.loads( row['body'])), rows)
-        # print("xxxxxxxxxxxxxx:"+str(time.time()-s))
-        # return ret
 
 # ################################################ objs ###############################################
     def addobjs(self,req,resp):
