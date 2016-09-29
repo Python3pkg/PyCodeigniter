@@ -419,7 +419,6 @@ class Cli:
         else:
             self.has_hd2db=True
         def _tmp():
-
             rows=[]
             batlen=1
             while True:
@@ -458,12 +457,16 @@ class Cli:
                             '''
 
                             self._cmdb.batch(sql,ds)
-                            batlen=int(ci.redis.llen(self.HEARTBEAT_LIST_KEY) / 10)
-                            if batlen<=0:
-                                batlen=1
+                            cnt=ci.redis.llen(self.HEARTBEAT_LIST_KEY)
+                            if cnt==None:
+                                cnt=0
+                            if cnt>50:
+                                batlen=int(cnt/5)
+                            else:
+                                batlen=cnt
                             rows=[]
                     else:
-                        time.sleep(1)
+                        time.sleep(10)
                 except Exception as er:
                     ci.logger.error(er)
         threading.Thread(target=_tmp).start()
@@ -497,7 +500,6 @@ class Cli:
                             insert_sqls=[]
                             insert_data=[]
                             insert_sql='''
-
                                     INSERT INTO ops_results
                                         (
                                         task_id,
@@ -537,13 +539,15 @@ class Cli:
 
                             if len(insert_data)>0:
                                 self._cmdb.batch(insert_sql,insert_data)
-                                time.sleep(0.1)
                             if len(update_data)>0:
                                 self._cmdb.batch(update_sql,update_data)
-                                time.sleep(0.1)
-                            batlen=int(ci.redis.llen(self.RESULT_LIST_KEY) / 10)
-                            if batlen<=0:
-                                batlen=1
+                            cnt=ci.redis.llen(self.RESULT_LIST_KEY)
+                            if cnt==None:
+                                cnt=0
+                            if cnt>50:
+                                batlen=int(cnt/5)
+                            else:
+                                batlen=cnt
                             rows=[]
                     else:
                         time.sleep(1)
@@ -745,7 +749,7 @@ class Cli:
         key=ci.config.get('web_key')
         if ci.md5(key+str(timestamp))!=md5:
             return '(error) sign error!'
-        return self._inner_cmd(req,resp)
+        return self._inner_cmd(req,resp,True)
 
     @auth
     def cmd(self,req,resp):
@@ -758,7 +762,7 @@ class Cli:
         return self._inner_cmd(req,resp)
 
 
-    def _inner_cmd(self,req,resp):
+    def _inner_cmd(self,req,resp,web_cmd=False):
         client_ip=req.env['REMOTE_ADDR']
         # op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
         # if not self._is_while_ip(client_ip):
@@ -776,7 +780,10 @@ class Cli:
         else:
             return '-c(cmd) require'
         if  'i' in params:
-            ip=params['i']+','
+            if not web_cmd:
+                ip=params['i']+','
+            else:
+                ip=params['i']
         else:
             return '-i(ip) require'
         if  't' in params:
@@ -807,7 +814,21 @@ class Cli:
         ip2uuid={}
         uuid2ip={}
         ipset=set()
-        if ip.find(',')!=-1:
+        if web_cmd:
+            import gevent
+            import gevent.queue
+            tqs= gevent.queue.Queue()
+            ips=json.loads(ip)
+            for x in ips:
+                ip2uuid[x['ip']]=x['uuid']
+                uuid2ip[x['uuid']]=x['ip']
+                ipset.add(x['uuid'])
+            map(lambda x:tqs.put(x),ipset)
+            tlen=tqs.qsize() if  tqs.qsize()<100 else 100
+            threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
+            gevent.joinall(threads)
+
+        elif ip.find(',')!=-1:
             import gevent
             import gevent.queue
             tqs= gevent.queue.Queue()
@@ -856,99 +877,6 @@ class Cli:
         return result
 
 
-    @auth
-    def cmd2(self,req,resp):
-        client_ip=req.env['REMOTE_ADDR']
-        op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
-        if not self._is_while_ip(client_ip):
-            return '(error) ip is not in white list.'
-        params=self._params(req.params['param'])
-        cmd=''
-        ip=''
-        user='root'
-        timeout=5
-        async='0'
-        out='text'
-        if  'c' in params:
-            cmd=params['c']
-        else:
-            return '-c(cmd) require'
-        if  'i' in params:
-            ip=params['i']+','
-        else:
-            return '-i(ip) require'
-        if  't' in params:
-            timeout= float( params['t'])
-        if  'u' in params:
-            user= params['u']
-        if  'o' in params:
-            out= params['o']
-            if out not in ['json','text']:
-                return '-o(output) must be text or json'
-        if not self._valid_cmd(cmd):
-            return '-c(cmd) is danger'
-        if  'async' in params:
-            async= params['async']
-        lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
-        ci.logger.info(json.dumps(lg))
-        result={}
-        failsip=[]
-        ipset=set()
-        def task(q):
-            while True:
-                if not tqs.empty():
-                    i=tqs.get()
-                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
-                    gevent.sleep(0)
-                else:
-                    break
-        ip2uuid={}
-        uuid2ip={}
-        if ip.find(',')!=-1:
-            import gevent
-            import gevent.queue
-            tqs= gevent.queue.Queue()
-            ips=ip.split(',')
-
-            _uuids= filter(lambda x:len(x)==36,ips)
-            for i in _uuids:
-                uuid2ip[str(i)]=str(i)
-            map(lambda x:tqs.put(str(x)),_uuids)
-            _ips= filter(lambda x:len(x)!=36,ips)
-            p=ci.redis.pipeline()
-            if len(_ips)>0:
-                for i in _ips:
-                    p.smembers(i)
-                lset=p.execute()
-                for i,v in enumerate(_ips):
-                    if len(lset[i])>0:
-                        _uuid= str(lset[i].pop())
-                        ip2uuid[str(v)]=_uuid
-                        tqs.put(_uuid)
-                    else:
-                        failsip.append(str(v))
-            tlen=tqs.qsize() if  tqs.qsize()<100 else 100
-            threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
-            gevent.joinall(threads)
-        else:
-            result[ip]= self._cmd(ip,cmd,timeout=timeout,user=user,async=async)
-
-        if out=='text':
-            ret=[]
-            for i in result:
-                ret.append('-'*80)
-                if len(i)<32 or len(uuid2ip)==0:
-                    ret.append(i)
-                else:
-                    ret.append(uuid2ip[i])
-                ret.append(result[i])
-            if len(failsip)>0:
-                return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
-            return "\n".join(ret)
-        elif out=='json':
-            return result
-
-        return result
 
     def cmdb(self,req,resp):
         params=self._params(req.params['param'])
