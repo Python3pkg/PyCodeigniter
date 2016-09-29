@@ -643,7 +643,7 @@ class Cli:
                             except Exception as er:
                                 # if isinstance(ret,basestring):
                                 #     return json.dumps(ret)
-                                return ret
+                                return ret.decode('utf-8','ignore')
                 return '(success) submit command success,job id:%s'% (index)
             else:
                 return '(unsafe) submit command success '
