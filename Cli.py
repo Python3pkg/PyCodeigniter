@@ -381,8 +381,7 @@ class Cli:
             batlen=1
             while True:
                 try:
-                    if self._cmdb==None:
-                        self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+                    self._init_cmdb()
                     now=time.time()
                     snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
@@ -443,8 +442,7 @@ class Cli:
             inner_timer=time.time()
             while True:
                 try:
-                    if self._cmdb==None:
-                        self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+                    self._init_cmdb()
                     now=time.time()
                     snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.rpop(self.RESULT_LIST_KEY)
@@ -848,9 +846,13 @@ class Cli:
             ci.redis.set('cmdb',json.dumps(json.loads(js)))
             return 'ok'
 
-    def load_cmdb2db(self,req,resp):
+    def _init_cmdb(self):
         if self._cmdb==None:
             self._cmdb=ci.loader.cls("CI_DB")(**ci.config.get('cmdb'))
+
+
+    def load_cmdb2db(self,req,resp):
+        self._init_cmdb()
         ret=ci.redis.get('cmdb')
         if ret!=None:
 
