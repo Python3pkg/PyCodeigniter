@@ -447,8 +447,9 @@ class Cli:
                     snow= time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.rpop(self.RESULT_LIST_KEY)
                     if js!=None or len(rows)>0:
-                        row=json.loads(js)
-                        rows.append(row)
+                        if js!=None:
+                            row=json.loads(js)
+                            rows.append(row)
                         if len(rows)>=batlen or (len(rows)>0 and time.time()-inner_timer>3):
                             inner_timer=time.time()
                             update_sqls=[]
