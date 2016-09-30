@@ -373,8 +373,9 @@ class Cli:
                     params['status']='{}'
                 sys_status=json.loads(params['status'])
                 sys_status['uuid']=params['uuid']
-                params['status']=sys_status
-                p.lpush(self.SYSTEM_STATUS_LIST_KEY,json.dumps(sys_status))
+                status=json.dumps(sys_status)
+                params['status']=status
+                p.lpush(self.SYSTEM_STATUS_LIST_KEY,status)
                 p.ltrim(self.SYSTEM_STATUS_LIST_KEY,0,5000)
             except Exception as er:
                 params['status']='{}'
