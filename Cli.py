@@ -461,6 +461,7 @@ class Cli:
                                         (
                                         task_id,
                                         cmd,
+                                        result,
                                         ctime,
                                         op_user,
                                         uuid
@@ -469,6 +470,7 @@ class Cli:
                                         (
                                         '{task_id}',
                                         '{cmd}',
+                                        '{result}',
                                         '{ctime}',
                                         '{op_user}',
                                         '{uuid}'
@@ -625,6 +627,7 @@ class Cli:
                 data_raw['task_id']=index
                 data_raw['ctime']=int(start)
                 data_raw['uuid']=ip
+                data_raw['result']=''
                 ci.redis.lpush(self.RESULT_LIST_KEY,json.dumps(data_raw))
 
 
