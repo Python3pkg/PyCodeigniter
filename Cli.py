@@ -248,6 +248,7 @@ class Cli:
         self.cmdkeys={}
         self.HEARTBEAT_LIST_KEY='heartbeats'
         self.RESULT_LIST_KEY='results'
+        self.SYSTEM_STATUS_LIST_KEY='system_status'
         self.TASK_LIST_KEY='indexs'
         self.CMDB_OPTION_PREFIX='cmdb_options_'
         self._cmdb=None
@@ -354,6 +355,8 @@ class Cli:
     def heartbeat(self,req,resp):
         client_ip=self._client_ip(req)
         params=self._params(req.params['param'])
+        if not 'uuid' in params.keys() or len(params['uuid'])!=36:
+            return '(error) invalid uuid'
         if not 'ips' in params.keys():
             return '(error) invalid ips'
         if not client_ip in params['ips'].split(','):
@@ -364,6 +367,18 @@ class Cli:
         params['ip']=client_ip
         p=ci.redis.pipeline()
         p.lpush(self.HEARTBEAT_LIST_KEY,json.dumps(params))
+        if 'status' in params:
+            try:
+                if params['status']=='13800138000':
+                    params['status']='{}'
+                sys_status=json.loads(params['status'])
+                sys_status['uuid']=params['uuid']
+                params['status']=sys_status
+                p.lpush(self.SYSTEM_STATUS_LIST_KEY,json.dumps(sys_status))
+                p.ltrim(self.SYSTEM_STATUS_LIST_KEY,0,5000)
+            except Exception as er:
+                params['status']='{}'
+                pass
         p.ltrim(self.HEARTBEAT_LIST_KEY,0,5000)
         p.execute()
         return self.hb.heartbeat(params)
@@ -378,51 +393,62 @@ class Cli:
             self.has_hd2db=True
         def _tmp():
             rows=[]
-            batlen=1
+            batlen=20
+            inner_timer=time.time()
             while True:
                 try:
                     self._init_cmdb()
                     now=time.time()
                     snow=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(now))
                     js= ci.redis.lpop(self.HEARTBEAT_LIST_KEY)
-                    if js!=None:
-                        row=json.loads(js)
-                        rows.append(row)
-                        if len(rows)>=batlen:
+                    if js!=None  or len(rows)>0:
+                        if js!=None:
+                            row=json.loads(js)
+                            rows.append(row)
+                        if len(rows)>=batlen  or (len(rows)>0 and time.time()-inner_timer>3):
                             sqls=[]
                             ds=[]
-                            for row in rows:
-                                data={'uuid':row['uuid'],'status':'online','utime':snow,'hostname':row['hostname'],'ip':row['ip']}
-                                ds.append(data)
-
                             sql='''
-
                             REPLACE INTO ops_heartbeat
                                 (UUID,
                                 hostname,
                                 ip,
                                 utime,
-                                STATUS
+                                `status`,
+                                system_status
                                 )
                                 VALUES
                                 ('{uuid}',
                                 '{hostname}',
                                 '{ip}',
                                 '{utime}',
-                                '{status}'
+                                '{status}',
+                                '{system_status}'
                                 )
                             '''
+                            for row in rows:
+                                data={'uuid':row['uuid'],'status':'online','utime':snow,'hostname':row['hostname'],'ip':row['ip'],'system_status':row['status']}
+                                ds.append(data)
 
                             self._cmdb.batch(sql,ds)
-                            cnt=ci.redis.llen(self.HEARTBEAT_LIST_KEY)
-                            if cnt==None:
-                                cnt=0
-                            if cnt>50:
-                                batlen=int(cnt/5)
-                            else:
-                                batlen=cnt
+                            inner_timer=time.time()
                             rows=[]
                     else:
+                        sql='''
+                        INSERT INTO ops_hosts
+                        (
+                        `uuid`,
+                        ip,
+                        hostname
+                        )
+                        SELECT ops_heartbeat.`uuid`,ops_heartbeat.`ip`,ops_heartbeat.`hostname` FROM ops_heartbeat
+
+                        LEFT JOIN ops_hosts ON ops_heartbeat.uuid=ops_hosts.uuid
+
+                        WHERE ISNULL( ops_hosts.uuid)
+
+                     '''
+                        self._cmdb.query(sql)
                         time.sleep(10)
                 except Exception as er:
                     ci.logger.error(er)
@@ -494,14 +520,13 @@ class Cli:
                                     insert_data.append(data)
                                 else:
                                     data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
+
                                     update_data.append(data)
 
                             if len(insert_data)>0:
                                 self._cmdb.batch(insert_sql,insert_data)
-                                time.sleep(0)
                             if len(update_data)>0:
                                 self._cmdb.batch(update_sql,update_data)
-                                time.sleep(0)
                             # cnt=ci.redis.llen(self.RESULT_LIST_KEY)
                             # if cnt==None:
                             #     cnt=0
