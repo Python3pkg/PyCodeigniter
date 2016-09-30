@@ -490,7 +490,7 @@ class Cli:
                                 '''
                             for row in rows:
                                 if 'user' in row:
-                                    data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid']}
+                                    data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid'],'result':''}
                                     insert_data.append(data)
                                 else:
                                     data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
