@@ -654,6 +654,11 @@ class Cli:
 
     def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
         try:
+            if isinstance(ip,dict):
+                if 'ip' in ip:
+                    _ip=ip['ip']
+                if 'uuid' in ip:
+                    ip=ip['uuid']
             etcd=self.hb.getetcd(ip)
             import urllib2,urllib
             objs=self.hb.get_product_uuid(ip)
@@ -901,9 +906,17 @@ class Cli:
                 return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
             return "\n".join(ret)
         elif out=='json':
-            return result
-
+            ret=[]
+            for i in result:
+                _result=result[i]
+                if len(i)<32 or len(uuid2ip)==0:
+                    _key=i
+                else:
+                    _key=uuid2ip[i]
+                ret.append({_key:_result})
+            return ret
         return result
+
 
 
 
