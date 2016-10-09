@@ -255,6 +255,7 @@ class Cli:
         self.hb=HeartBeat()
         self.has_hd2db=False
         self.has_result2db=False
+        self.has_hb2influxdb=False
 
     def index(self,req,resp):
         return "ok"
@@ -373,6 +374,7 @@ class Cli:
                     params['status']='{}'
                 sys_status=json.loads(params['status'])
                 sys_status['uuid']=params['uuid']
+                sys_status['time']=time.time()
                 status=json.dumps(sys_status)
                 params['status']=status
                 p.lpush(self.SYSTEM_STATUS_LIST_KEY,status)
@@ -455,8 +457,55 @@ class Cli:
                     ci.logger.error(er)
         threading.Thread(target=_tmp).start()
         return 'ok'
+
+
+    def hb2influxdb(self,req,resp):
+        return self._hb2influxdb()
+
+    def _hb2influxdb(self):
+        from influxdb import InfluxDBClient
+        if self.has_hb2influxdb:
+            return 'ok'
+        else:
+            self.has_hb2influxdb=True
+        conf=ci.config.get('influxdb',{})
+        if 'app' in conf:
+            del conf['app']
+        client = InfluxDBClient(**conf)
+        def _tmp():
+            while True:
+                try:
+                    ret=ci.redis.rpop('system_status')
+                    if ret!=None:
+                        data=json.loads(ret)
+                        json_body=[]
+                        for i in ['cpu','disk','mem','load','iowait','net']:
+                            row={
+                                "measurement": "system_status",
+                                "tags": {
+                                    "uuid": data['uuid'],
+                                    'mtype':i,
+                                    #"hostname": data['hostname'],
+                                },
+                                #"time": time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(data['time'])),
+                                "fields": {
+                                    "value":float(data[i]),
+                                }
+                            }
+                            json_body.append(row)
+                        client.write_points(json_body)
+                    else:
+                        time.sleep(0.5)
+                except Exception as er:
+                    print(er)
+                    pass
+        threading.Thread(target=_tmp).start()
+        return 'ok'
+
     def result2db(self,req,resp):
         return self._result2db()
+
+
 
     def _result2db(self):
         if self.has_result2db:
