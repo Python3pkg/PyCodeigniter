@@ -1,3 +1,4 @@
+import logging
 db={
     'creator':'sqlite3',
     'database':'cli.db',
@@ -53,6 +54,21 @@ redis={
 }
 
 
+autoload={
+    'controllers':{
+#"Index":"Index",
+    },
+    'models':{
+
+    },
+    'library':{
+
+    },
+    'helps':{
+
+    }
+
+}
 
 
 log={
