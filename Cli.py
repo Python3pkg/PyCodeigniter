@@ -251,6 +251,7 @@ class Cli:
         self.SYSTEM_STATUS_LIST_KEY='system_status'
         self.TASK_LIST_KEY='indexs'
         self.CMDB_OPTION_PREFIX='cmdb_options_'
+        self.HEARTBEAT_MAP_KEY='heartbeat_maps'
         self._cmdb=None
         self.hb=HeartBeat()
         self.has_hd2db=False
@@ -383,6 +384,7 @@ class Cli:
                 params['status']='{}'
                 pass
         p.ltrim(self.HEARTBEAT_LIST_KEY,0,5000)
+        p.hset(self.HEARTBEAT_MAP_KEY,params['uuid'],client_ip)
         p.execute()
         return self.hb.heartbeat(params)
 
@@ -868,13 +870,19 @@ class Cli:
             tqs= gevent.queue.Queue()
             ips=ip.split(',')
             self.hb.status()
+            ##### old implement
+            # for row in self.hb.data:
+            #     for i in row['ips'].split(','):
+            #         i=str(i)
+            #         if i.strip()!='' and i in ips:
+            #             ip2uuid[str(i)]=row['uuid']
+            #             uuid2ip[str(row['uuid'])]=str(i)
+            #####  end old implement
+            hbmap=ci.redis.hgetall(self.HEARTBEAT_MAP_KEY)
+            for _id in hbmap:
+                uuid2ip[_id]=hbmap[_id]
+                ip2uuid[hbmap[_id]]=_id
 
-            for row in self.hb.data:
-                for i in row['ips'].split(','):
-                    i=str(i)
-                    if i.strip()!='' and i in ips:
-                        ip2uuid[str(i)]=row['uuid']
-                        uuid2ip[str(row['uuid'])]=str(i)
             for i in ips:
                 if i in ip2uuid.keys():
                     # tqs.put(ip2uuid[i])
@@ -914,6 +922,7 @@ class Cli:
                 else:
                     _key=uuid2ip[i]
                 ret.append({_key:_result})
+            ret.append({'failsip':','.join(failsip)})
             return ret
         return result
 
