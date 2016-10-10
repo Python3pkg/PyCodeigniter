@@ -148,14 +148,11 @@ class HeartBeat(object):
     def online(self):
         return self._status_line(status='online')
 
-
-
-
     def getetcd(self,param):
-        return {'server':['10.3.155.104:4001'],'prefix':'/keeper'}
-        return {'server':['172.16.119.110:4001'],'prefix':'/keeper'}
-        return {'server':['172.16.119.3:4001'],'prefix  ':'/keeper'}
-
+        etcd=ci.config.get('etcd',{'server':['127.0.0.1'],'prefix':'/keeper'})
+        if 'app' in etcd:
+            del etcd['app']
+        return etcd
 
 
     # @cache.Cache()
@@ -251,7 +248,8 @@ class Cli:
         self.SYSTEM_STATUS_LIST_KEY='system_status'
         self.TASK_LIST_KEY='indexs'
         self.CMDB_OPTION_PREFIX='cmdb_options_'
-        self.HEARTBEAT_MAP_KEY='heartbeat_maps'
+        self.HEARTBEAT_UUID_MAP_IP_KEY='heartbeat_uuid_ip'
+        self.HEARTBEAT_IP_MAP_UUID_KEY='heartbeat_ip_uuid'
         self._cmdb=None
         self.hb=HeartBeat()
         self.has_hd2db=False
@@ -361,7 +359,8 @@ class Cli:
             return '(error) invalid uuid'
         if not 'ips' in params.keys():
             return '(error) invalid ips'
-        if not client_ip in params['ips'].split(','):
+        ips=params['ips'].split(',')
+        if not client_ip in ips:
             ci.logger.info(client_ip+' attack server ')
             return '(error) invalid client_ip'
         if not 'hostname' in params.keys():
@@ -384,7 +383,10 @@ class Cli:
                 params['status']='{}'
                 pass
         p.ltrim(self.HEARTBEAT_LIST_KEY,0,5000)
-        p.hset(self.HEARTBEAT_MAP_KEY,params['uuid'],client_ip)
+        for _i in ips:
+            if _i!='' and (_i.startswith('10.') or _i.startswith('172.') or _i.startswith('192.')):
+                p.hset(self.HEARTBEAT_IP_MAP_UUID_KEY,_i,params['uuid'])
+        p.hset(self.HEARTBEAT_UUID_MAP_IP_KEY,params['uuid'],client_ip)
         p.execute()
         return self.hb.heartbeat(params)
 
@@ -878,10 +880,17 @@ class Cli:
             #             ip2uuid[str(i)]=row['uuid']
             #             uuid2ip[str(row['uuid'])]=str(i)
             #####  end old implement
-            hbmap=ci.redis.hgetall(self.HEARTBEAT_MAP_KEY)
-            for _id in hbmap:
-                uuid2ip[_id]=hbmap[_id]
-                ip2uuid[hbmap[_id]]=_id
+            # hbmap=ci.redis.hgetall(self.HEARTBEAT_UUID_MAP_IP_KEY)
+            # if hbmap!=None:
+            #     for _id in hbmap:
+            #         uuid2ip[_id]=hbmap[_id]
+            #         ip2uuid[hbmap[_id]]=_id
+            hbmap=ci.redis.hgetall(self.HEARTBEAT_IP_MAP_UUID_KEY)
+            if hbmap!=None:
+                for _id in hbmap:
+                    ip2uuid[_id]=hbmap[_id]
+                    uuid2ip[hbmap[_id]]=_id
+
 
             for i in ips:
                 if i in ip2uuid.keys():
@@ -893,7 +902,11 @@ class Cli:
                         ipset.add(i)
                     else:
                         failsip.append(i)
-                # result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+            uuids=ci.redis.smembers("uuids")
+            if uuids==None:
+                uuids=set()
+            failuuids=ipset-uuids
+            ipset= ipset & uuids
             map(lambda x:tqs.put(x),ipset)
             tlen=tqs.qsize() if  tqs.qsize()<100 else 100
             threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
@@ -908,7 +921,11 @@ class Cli:
                 if len(i)<32 or len(uuid2ip)==0:
                     ret.append(i)
                 else:
-                    ret.append(uuid2ip[i])
+                    if i in uuid2ip:
+                        ret.append(uuid2ip[i])
+                    else:
+                        ret.append(i)
+                        failsip.append(i)
                 ret.append(result[i])
             if len(failsip)>0:
                 return "\n".join(ret)+"\nfails:\n"+"\n".join(failsip)
@@ -920,7 +937,11 @@ class Cli:
                 if len(i)<32 or len(uuid2ip)==0:
                     _key=i
                 else:
-                    _key=uuid2ip[i]
+                    if i in uuid2ip:
+                        _key=uuid2ip[i]
+                    else:
+                        _key=i
+                        failsip.append(i)
                 ret.append({_key:_result})
             ret.append({'failsip':','.join(failsip)})
             return ret
@@ -1850,7 +1871,7 @@ class Cli:
     def installcron(self,req,resp):
         ok,uuid=self._check_uuid(req)
         if ok :
-            return self._cmd(uuid,'sudo cli download -f croncli -o /bin/croncli && sudo chmod +x /bin/croncli && sudo  /bin/croncli install && sudo  /bin/croncli start')
+            return self._cmd(uuid,'if [ ! -f  /bin/croncli ];then cli download -f croncli -o /bin/croncli ;fi && chmod +x /bin/croncli &&    /bin/croncli install &&   /bin/croncli start')
         return uuid
 
     def _cron(self,uuid,action='get',param=''):
