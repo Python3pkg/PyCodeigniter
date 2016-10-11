@@ -4,12 +4,17 @@ __author__ = 'xiaozhang'
 
 import atexit
 from signal import SIGTERM
-
+import sys
 import os
-try:
+PY2 = sys.version_info[0] == 2
+PY3 = sys.version_info[0] == 3
+if PY2:
     import urllib2 as urllib2
-except:
+    from urlparse import urlparse
+if PY3:
     import urllib.request as urllib2
+    import urllib.parse as urlparse
+
 import urllib
 import subprocess
 import time
@@ -17,7 +22,7 @@ import datetime
 import re
 import logging
 import hashlib
-import sys
+
 import tempfile
 import threading
 import getopt
@@ -26,10 +31,11 @@ import json
 import random
 import platform
 import socket
-from urlparse import urlparse
+
 import uuid
 import inspect
 import getpass
+
 
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8006"
@@ -64,7 +70,7 @@ def init_log():
     if user=='root':
         try:
             os.popen('chattr -a %s'%(client_log_filename)).read()
-            os.chmod(client_log_filename,0777)
+            os.chmod(client_log_filename,777)
             os.popen('chattr +a %s'%(client_log_filename)).read()
         except Exception as er:
             pass
@@ -737,7 +743,7 @@ server_url=http://127.0.0.1:8005
             else:
                 print('-f(filename) is not found ')
                 return
-        print self.util.md5(data['s'])
+        print(self.util.md5(data['s']))
 
     def uuid(self,argv):
         print(self.util.get_uuid())
@@ -878,7 +884,7 @@ class ZbxDaemon(Daemon):
             self.etcd_conf=objs['etcd']
             if 'shell' in objs.keys():
                 self.shellstr=objs['shell']
-                # print self.util.execute(self.shellstr)
+                # print(self.util.execute(self.shellstr))
 
             self.etcd_list=objs['etcd']['server']
             self.etcd_prefix=objs['etcd']['prefix']
@@ -937,7 +943,6 @@ class ZbxDaemon(Daemon):
             logger.error('watch_commmand error:'+str(er))
 
 
-
     def feedback_result(self,ip,host,content):
         try:
             # logger.info("process cmd")
@@ -961,7 +966,8 @@ class ZbxDaemon(Daemon):
                 key = cNode['key']
                 createdIndex = cNode['createdIndex']
                 cNode=json.loads(cNode['value'])
-                cmd = cNode['cmd'].encode('utf-8')
+                cmd=cNode['cmd']
+                cmd = cmd.encode('utf-8')
                 md5 = cNode['md5']
                 if 'timeout' in cNode.keys():
                     timeout = float(cNode['timeout'])
@@ -989,7 +995,7 @@ class ZbxDaemon(Daemon):
                         message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
                         # print(type(message))
                         self.remote_server('cli','feedback_result',message)
-                        # print json.dumps(message)
+                        # print(json.dumps(message))
                     threading.Thread(target=tmp).start()
                 else:
                     print('salt error',self.salt)
