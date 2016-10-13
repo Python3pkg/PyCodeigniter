@@ -39,7 +39,7 @@ import getpass
 
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8006"
-server_url="http://10.3.155.104:8005"
+server_url="http://10.3.155.195:8005"
 #server_url="http://172.16.119.3:8006"
 configfile='/etc/cli'
 default_module='cli'
@@ -78,6 +78,120 @@ def init_log():
 
 logger=init_log()
 
+
+class CertificateError(ValueError):
+    pass
+try:
+    import ssl
+except ImportError:
+    ssl = None
+    import warnings
+    msg = ("Can't import ssl. HTTPS won't work."
+           "Run `pip install ssl` if Python < 2.6")
+    try:
+        ImportWarning
+    except NameError:
+        warnings.warn(msg)
+    else:
+        warnings.warn(msg, ImportWarning)
+else:
+    try:
+        from http import client
+    except ImportError:
+        import httplib as client
+    import re
+    try:
+        import urllib2 as request
+    except ImportError:
+        from urllib import request
+    class HTTPSConnection(client.HTTPSConnection):
+        def __init__(self, host, **kwargs):
+            self.ca_certs = kwargs.pop('ca_certs', None)
+            self.checker = kwargs.pop('checker', None)
+            self.timeout = kwargs.get('timeout', socket.getdefaulttimeout())
+            client.HTTPSConnection.__init__(self, host, **kwargs)
+
+
+        def connect(self):
+            args = [(self.host, self.port), self.timeout,]
+            if hasattr(self, 'source_address'):
+                args.append(self.source_address)
+            sock = socket.create_connection(*args)
+            if getattr(self, '_tunnel_host', None):
+                self.sock = sock
+                self._tunnel()
+            kwargs = {}
+            if self.ca_certs is not None:
+                kwargs.update(
+                    cert_reqs=ssl.CERT_REQUIRED,
+                    ca_certs=self.ca_certs)
+            self.sock = ssl.wrap_socket(sock,
+                                        keyfile=self.key_file,
+                                        certfile=self.cert_file,
+                                        **kwargs)
+            if self.checker is not None:
+                try:
+                    self.checker(self.sock.getpeercert(), self.host)
+                except CertificateError:
+                    self.sock.shutdown(socket.SHUT_RDWR)
+                    self.sock.close()
+                    raise
+    class HTTPSHandler(request.HTTPSHandler):
+        def __init__(self, key_file=None, cert_file=None, ca_certs=None,
+                     checker=None):
+            request.HTTPSHandler.__init__(self)
+            self.key_file = key_file
+            self.cert_file = cert_file
+            self.ca_certs = ca_certs
+            self.checker = self.match_hostname
+        def _dnsname_to_pat(self,dn):
+            pats = []
+            for frag in dn.split(r'.'):
+                if frag == '*':
+                    pats.append('[^.]+')
+                else:
+                    frag = re.escape(frag)
+                    pats.append(frag.replace(r'\*', '[^.]*'))
+            return re.compile(r'\A' + r'\.'.join(pats) + r'\Z', re.IGNORECASE)
+        def match_hostname(self,cert, hostname):
+            return
+            if not cert:
+                raise ValueError("empty or no certificate")
+            dnsnames = []
+            san = cert.get('subjectAltName', ())
+            for key, value in san:
+                if key == 'DNS':
+                    if self._dnsname_to_pat(value).match(hostname):
+                        return
+                    dnsnames.append(value)
+            if not dnsnames:
+                for sub in cert.get('subject', ()):
+                    for key, value in sub:
+                        if key == 'commonName':
+                            if self._dnsname_to_pat(value).match(hostname):
+                                return
+                            dnsnames.append(value)
+
+            if len(dnsnames) > 1:
+                raise CertificateError("hostname %r "
+                    "doesn't match either of %s"
+                    % (hostname, ', '.join(map(repr, dnsnames))))
+            elif len(dnsnames) == 1:
+                raise CertificateError("hostname %r "
+                    "doesn't match %r"
+                    % (hostname, dnsnames[0]))
+            else:
+                raise CertificateError("no appropriate commonName or "
+                    "subjectAltName fields were found")
+        def https_open(self, req):
+            return self.do_open(self.getConnection, req)
+        def getConnection(self, host, **kwargs):
+            d = dict(cert_file=self.cert_file,
+                     key_file=self.key_file,
+                     ca_certs=self.ca_certs,
+                     checker=self.checker)
+            d.update(kwargs)
+            return HTTPSConnection(host, **d)
 
 class Daemon(object):
         def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
@@ -539,12 +653,7 @@ class ZbxCommon(object):
         else:
             return str(args)
 
-
-
-
-
 class ZbxCli():
-
 
     def __init__(self,default_module):
         self.entry=server_url+'/'+default_module+"/%s"
@@ -613,6 +722,11 @@ class ZbxCli():
     def daemon(self,argv):
         daemon = ZbxDaemon(pidfile)
         setattr(daemon,'zbxcli',self)
+        key_file='/etc/cli/etcd-worker-key.pem'
+        cert_file='/etc/cli/etcd-worker.pem'
+        if os.path.exists(key_file) and os.path.exists(cert_file):
+            opener=urllib2.build_opener(HTTPSHandler(cert_file=cert_file,key_file=key_file))
+            urllib2.install_opener(opener)
         data= self.util.getopt(sys.argv[1:])
         opt = data.get('s')
         if 'start' == opt:
@@ -625,6 +739,7 @@ class ZbxCli():
             print("cli daemon restart")
             daemon.restart()
         elif 'debug' == opt:
+            global_debug=True
             daemon.run()
         elif 'kill' == opt:
             daemon.kill()
@@ -857,12 +972,12 @@ class ZbxDaemon(Daemon):
                 if not isinstance(self.etcd_list,list):
                     raise Exception("get etcd list error")
                 for host in self.etcd_list:
-                    print(self.util.url_fetch_witherr("http://%s/v2/keys%s/heartbeat" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'heartbeat'},httpCmd = 'PUT' ))
-                    print(self.util.url_fetch_witherr("http://%s/v2/keys%s/servers" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'servers'},httpCmd = 'PUT' ))
+                    print(self.util.url_fetch_witherr("%s/keys%s/heartbeat" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'heartbeat'},httpCmd = 'PUT' ))
+                    print(self.util.url_fetch_witherr("%s/keys%s/servers" % (host,self.etcd_prefix) ,data={'ttl':60,'value':'servers'},httpCmd = 'PUT' ))
                 self.update_time = now
         except Exception as er:
             print(er)
-            # time.sleep(5)
+            time.sleep(3)
             # return self.get_etcd()
 
     def status(self):
@@ -891,6 +1006,8 @@ class ZbxDaemon(Daemon):
             # print('salt',self.salt)
             logger.info("heartbeat2server OK")
         except Exception as er:
+            print(er)
+            time.sleep(3)
             logger.error('heartbeat2server'+str(er))
 
     def heartbeat(self):
@@ -898,19 +1015,25 @@ class ZbxDaemon(Daemon):
             logger.info("=== heartbeat start")
             ip = self.util.get_product_uuid()
             for host in self.etcd_list:
-                # print("heartbeat:  http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
+                # print("heartbeat:  %s/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip))
                 ips=",".join(self.util.get_all_ip_list())
                 try:
-                    html = self.util.url_fetch_witherr("http://%s/v2/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
+                    html=''
+                    html = self.util.url_fetch_witherr("%s/keys%s/heartbeat/%s" % (host,self.etcd_prefix,ip) ,data={'ttl':60*5,'value':ips},httpCmd = 'PUT' )
                     logger.info("heartbeat2etcd OK")
+                    self.has_heartbeat_error=False
                 except Exception as her:
                     pass
                 if html != "":
                     break
             logger.info("=== heartbeata end")
         except Exception as er:
+
+            time.sleep(3)
             print(er)
-            logger.error('heartbeat error:'+str(er))
+            if not self.has_heartbeat_error:
+                logger.error('heartbeat error:'+str(er))
+                self.has_heartbeat_error=True
 
 
     def watch_commmand(self):
@@ -920,7 +1043,7 @@ class ZbxDaemon(Daemon):
             for host in self.etcd_list:
                 content=''
                 try:
-                    content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                    content = self.util.url_fetch_witherr("%s/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
                 except Exception as er:
                     pass
                 if content!='':
@@ -928,9 +1051,9 @@ class ZbxDaemon(Daemon):
                     if rjson['node'].get('nodes'):
                         self.feedback_result(ip,host,content)
                         break
-                self.util.url_fetch("http://%s/v2/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
+                self.util.url_fetch("%s/keys%s/servers/%s?wait=true&recursive=true" % (host,self.etcd_prefix,ip),timeout = 20+ random.randint(1,10) )
                 try:
-                    content = self.util.url_fetch_witherr("http://%s/v2/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
+                    content = self.util.url_fetch_witherr("%s/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
                 except Exception as her:
                     # print(her)
                     pass
@@ -940,7 +1063,8 @@ class ZbxDaemon(Daemon):
                     break
         except Exception as er:
             print(er)
-            logger.error('watch_commmand error:'+str(er))
+            time.sleep(3)
+            #logger.error('watch_commmand error:'+str(er))
 
 
     def feedback_result(self,ip,host,content):
@@ -951,7 +1075,7 @@ class ZbxDaemon(Daemon):
                 return
             rjson = json.loads(content)
             if not rjson['node'].get('dir',False):
-                url = "http://%s/v2/keys%s?recursive=true" % (host,rjson['node']['key'])
+                url = "%s/keys%s?recursive=true" % (host,rjson['node']['key'])
                 print("feedback_result"+ url)
                 self.util.url_fetch(url,httpCmd= 'DELETE' )
                 logger.info("publish is no dir")
@@ -962,6 +1086,7 @@ class ZbxDaemon(Daemon):
                 return
 
             logger.info("process cmd")
+            key=''
             for cNode in  rjson['node']['nodes']:
                 key = cNode['key']
                 createdIndex = cNode['createdIndex']
@@ -976,7 +1101,7 @@ class ZbxDaemon(Daemon):
                 if md5==self.util.md5(cmd+str(self.salt)):
 
                     # self.keys.append(key)
-                    url = "http://%s/v2/keys%s?recursive=true" % (host,key)
+                    url = "%s/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     def tmp():
                         print('cmd:',cmd)
@@ -1000,14 +1125,19 @@ class ZbxDaemon(Daemon):
                 else:
                     print('salt error',self.salt)
                     logger.error('miss command %s ' %(cmd))
-                    url = "http://%s/v2/keys%s?recursive=true" % (host,key)
+                    url = "%s/keys%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
                     self.remote_server('cli','feedback_result',message)
 
-
-
         except BaseException as e:
+            try:
+                url = "%s/keys%s?recursive=true" % (host,key)
+                self.util.url_fetch(url,httpCmd= 'DELETE' )
+                self.logger.error('lost command : '+str(cNode))
+            except Exception as er:
+                pass
+
             logger.error('feedback_result error:'+str(e))
             print("feed error")
             print(e)
@@ -1021,16 +1151,17 @@ class ZbxDaemon(Daemon):
                 self.heartbeat2server()
                 time.sleep(2)
                 self.heartbeat()
-                time.sleep(60*2+ random.randint(1,60*2))
+                if not global_debug:
+                    time.sleep(60*2+ random.randint(1,60*2))
+                else:
+                    time.sleep(10)
             except Exception as er:
                 logger.error('sync_conf error:'+str(er))
                 pass
 
-
     def run(self):
         self.update_time=time.time()-800
-
-
+        self.has_heartbeat_error=False
         sync=threading.Thread(target=self.sync_conf)
         sync.setDaemon(True)
         sync.start()
@@ -1076,7 +1207,6 @@ if __name__ == '__main__':
     cli=ZbxCli(default_module)
     util=ZbxCommon()
     data= util.getopt(sys.argv[1:])
-
 
     if data['__ctrl__']=='':
         if data['__func__']=='':

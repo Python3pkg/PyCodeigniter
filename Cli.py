@@ -2,7 +2,18 @@
 # -*- coding:utf8 -*-
 __author__ = 'xiaozhang'
 
-
+import sys
+import os
+PY2 = sys.version_info[0] == 2
+PY3 = sys.version_info[0] == 3
+import requests
+# if PY2:
+#     import urllib2 as urllib2
+#     from urlparse import urlparse
+# if PY3:
+#     import urllib.request as urllib2
+#     import urllib.parse as urlparse
+# import urllib
 from codeigniter import ci
 from codeigniter import cache
 from codeigniter import CI_Cache
@@ -13,12 +24,13 @@ import sys
 import time
 import base64
 import datetime
+import socket
 # from sql4json.sql4json import *
 
+
+
+
 import threading
-
-
-
 
 
 
@@ -30,9 +42,6 @@ def auth(func):
             return "(error)unauthorize"
         return func(*arg,**kwargs)
     return decorated
-
-
-
 
 
 class HeartBeat(object):
@@ -255,6 +264,20 @@ class Cli:
         self.has_hd2db=False
         self.has_result2db=False
         self.has_hb2influxdb=False
+        self.opener=requests.session()
+        self.init()
+
+
+    def init(self):
+        cert=ci.config.get('certificate',{})
+        key_file=cert.get('key_file','/etc/cli/etcd-worker-key.pem')
+        cert_file=cert.get('cert_file','/etc/cli/etcd-worker.pem')
+        self.opener.cert=( cert_file,key_file )
+        #ret=requests.post(url,data,timeout=10,verify=False,cert=( cert_file,key_file )).json()
+        #pass
+
+
+
 
     def index(self,req,resp):
         return "ok"
@@ -655,8 +678,19 @@ class Cli:
         else:
             return self.hb.confirm_offline()
 
+    def _encode(self,plaintext,n=0,e=0,d=0):
+        def _encryption(c,d,n):
+            x = pow(c,d,n)
+            return x
+        result=[]
+        result.append(str(n))
+        result.append(str(d))
+        for char in plaintext:
+            result.append(str(_encryption(ord(char),e,n)))
+        return base64.encodestring(','.join(result))
 
     def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
+
         try:
             if isinstance(ip,dict):
                 if 'ip' in ip:
@@ -664,7 +698,7 @@ class Cli:
                 if 'uuid' in ip:
                     ip=ip['uuid']
             etcd=self.hb.getetcd(ip)
-            import urllib2,urllib
+            # import urllib2,urllib
             objs=self.hb.get_product_uuid(ip)
             salt=''
             puuid=''
@@ -684,14 +718,23 @@ class Cli:
             cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
             data={'value': json.dumps( data_raw) }
-            data=urllib.urlencode(data)
-            req = urllib2.Request(
-                    url ="http://%s/v2/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid),
-                    data=data
-            )
-            req.get_method = lambda: 'POST'
+            # data=urllib.urlencode(data)
+            url="%s/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid)
+            # req = urllib2.Request(
+            #         url =url,
+            #         data=data
+            # )
+            # req.get_method = lambda: 'POST'
             # print urllib2.urlopen(req,timeout=10).read()
-            ret=json.loads(urllib2.urlopen(req,timeout=10).read())
+            # ret=json.loads(urllib2.urlopen(req,timeout=10).read())
+
+            cert=ci.config.get('certificate',{})
+            key_file=cert.get('key_file','/etc/cli/etcd-worker-key.pem')
+            cert_file=cert.get('cert_file','/etc/cli/etcd-worker.pem')
+            # ret=requests.post(url,data,timeout=10,verify=False,cert=( cert_file,key_file )).json()
+            ret=self.opener.post(url,data,timeout=10,verify=False).json()
+
+
 
 
 
