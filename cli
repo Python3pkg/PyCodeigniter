@@ -1045,6 +1045,7 @@ class ZbxDaemon(Daemon):
                 try:
                     content = self.util.url_fetch_witherr("%s/keys%s/servers/%s?recursive=true" % (host,self.etcd_prefix,ip),timeout = 10 )
                 except Exception as er:
+                    time.sleep(3)
                     pass
                 if content!='':
                     rjson=json.loads(content)
