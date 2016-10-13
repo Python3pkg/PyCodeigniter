@@ -347,7 +347,7 @@ class ZbxCommon(object):
         try:
             data={'file':filename,'dir':directory}
             data=urllib.urlencode(data)
-            http_url='%s%s/download?%s' % (server_url,default_module,data)
+            http_url='%s/%s/download?%s' % (server_url,default_module,data)
             conn = urllib2.urlopen(http_url)
             f = open(filepath,'wb')
             f.write(conn.read())
@@ -762,7 +762,7 @@ class ZbxCli():
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
             data['p']=getpass.getpass('please input password: ')
-        ret=self.util.url_fetch(server_url+'/%s%s'%(module,action),{'param':json.dumps(data)})
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         print(ret)
 
     def login(self,argv):
@@ -771,7 +771,7 @@ class ZbxCli():
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
             data['p']=getpass.getpass('please input password: ')
-        ret=self.util.url_fetch(server_url+'/%s%s'%(module,action),{'param':json.dumps(data)})
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         home= os.path.expanduser('~')
         fn=home+'/.cli'
         # if os.path.isfile(fn):
@@ -791,7 +791,7 @@ class ZbxCli():
             data['u']=raw_input('please input username: ')
         if 'p' not in data:
             data['p']=getpass.getpass('please input password: ')
-        ret=self.util.url_fetch(server_url+'/%s%s'%(module,action),{'param':json.dumps(data)})
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(data)})
         print(ret)
 
 
@@ -817,7 +817,7 @@ server_url=http://127.0.0.1:8005
             #    argv['g']="Discovered hosts"
             #if not 't' in argv:
             #    argv['t']="Meizu-System"
-        ret=self.util.url_fetch(server_url+'/%s%s'%(module,action),{'param':json.dumps(argv)},timeout=3*60)
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)},timeout=3*60)
         if ret.strip()!='':
             try:
                 ret=json.dumps(json.loads(ret),sort_keys=True,indent=2)
@@ -881,7 +881,7 @@ server_url=http://127.0.0.1:8005
             #    argv['g']="Discovered hosts"
             #if not 't' in argv:
             #    argv['t']="Meizu-System"
-        ret=self.util.url_fetch(server_url+'/%s%s'%(module,action),{'param':json.dumps(argv)})
+        ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)})
         return ret
 
 
@@ -993,7 +993,7 @@ class ZbxDaemon(Daemon):
             #                                                       platform.system().lower(),'--hostname',self.util.get_hostname() ])
             data={'uuid':self.util.get_product_uuid(),'ips':ips,'status':self.status(),
                   'platform':platform.system().lower(),'hostname':self.util.get_hostname() }
-            ret=self.util.url_fetch(server_url+'/%s%s'%(module,'heartbeat'),{'param':json.dumps(data)})
+            ret=self.util.url_fetch(server_url+'/%s/%s'%(module,'heartbeat'),{'param':json.dumps(data)})
             objs= json.loads(ret)
             self.salt=objs['salt']
             self.etcd_conf=objs['etcd']
@@ -1076,7 +1076,7 @@ class ZbxDaemon(Daemon):
                 return
             rjson = json.loads(content)
             if not rjson['node'].get('dir',False):
-                url = "%s%s?recursive=true" % (host,rjson['node']['key'])
+                url = "%s/%s?recursive=true" % (host,rjson['node']['key'])
                 print("feedback_result"+ url)
                 self.util.url_fetch(url,httpCmd= 'DELETE' )
                 logger.info("publish is no dir")
@@ -1126,14 +1126,14 @@ class ZbxDaemon(Daemon):
                 else:
                     print('salt error',self.salt)
                     logger.error('miss command %s ' %(cmd))
-                    url = "%s%s?recursive=true" % (host,key)
+                    url = "%s/%s?recursive=true" % (host,key)
                     self.util.url_fetch(url,httpCmd= 'DELETE' )
                     message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
                     self.remote_server('cli','feedback_result',message)
 
         except BaseException as e:
             try:
-                url = "%s%s?recursive=true" % (host,key)
+                url = "%s/%s?recursive=true" % (host,key)
                 self.util.url_fetch(url,httpCmd= 'DELETE' )
                 self.logger.error('lost command : '+str(cNode))
             except Exception as er:
