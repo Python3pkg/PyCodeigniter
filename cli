@@ -8,14 +8,17 @@ import sys
 import os
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
+import urllib
 if PY2:
     import urllib2 as urllib2
     from urlparse import urlparse
 if PY3:
     import urllib.request as urllib2
     from urllib.parse import urlparse
+    urllib.urlencode=urllib.parse.urlencode
 
-import urllib
+
+
 import subprocess
 import time
 import datetime
@@ -420,6 +423,8 @@ class ZbxCommon(object):
             }
             if data!=None:
                 data=urllib.urlencode(data)
+                if PY3:
+                    data=data.encode('utf-8','ignore')
                 # print(data)
 
             req = urllib2.Request(
