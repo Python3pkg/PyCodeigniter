@@ -13,7 +13,7 @@ if PY2:
     from urlparse import urlparse
 if PY3:
     import urllib.request as urllib2
-    import urllib.parse as urlparse
+    from urllib.parse import urlparse
 
 import urllib
 import subprocess
@@ -58,9 +58,13 @@ def init_log():
     # if user=='root':
     #     os.chmod(log_dir,0666)
     log_fmt_str='%(asctime)-25s %(module)s:%(lineno)d  %(levelname)-8s %(message)s'
-    logging.basicConfig(level=logging.DEBUG,
-            format=log_fmt_str,
-            filemode='a+')
+    if PY2:
+        logging.basicConfig(level=logging.DEBUG,
+                format=log_fmt_str,
+                filemode='a+')
+    if PY3:
+        logging.basicConfig(level=logging.DEBUG,
+                format=log_fmt_str)
     logger = logging.getLogger('CLI')
     file_handler=RotatingFileHandler(filename=client_log_filename,maxBytes=100 * 1024 * 1024, backupCount=3)
     formatter= logging.Formatter(log_fmt_str)
@@ -432,12 +436,13 @@ class ZbxCommon(object):
 
             html=handle.read()
 
-            charset=re.compile(r'<meta[^>]*charset=[\'\"]*?([a-z0-8\-]+)[\'\"]?[^>]*?>',re.IGNORECASE).findall(html)
+            charset=re.compile(b'<meta[^>]*charset=[\'\"]*?([a-z0-8\-]+)[\'\"]?[^>]*?>',re.IGNORECASE).findall(html)
             if len(charset) >0:
                 if charset[0]=='gb2312':
                     charset[0]='gbk'
                 html=unicode(html,charset[0])
-            #print(html)
+            if PY3:
+                return html.decode('utf-8','ignore')
         except Exception as e:
             raise Exception(e)
         finally:
@@ -1067,6 +1072,12 @@ class ZbxDaemon(Daemon):
             time.sleep(3)
             #logger.error('watch_commmand error:'+str(er))
 
+    def delete_cmd(self,host,key):
+        try:
+            url = "%s%s?recursive=true" % (host,key)
+            self.util.url_fetch(url,httpCmd= 'DELETE' )
+        except Exception as er:
+            print(er)
 
     def feedback_result(self,ip,host,content):
         try:
@@ -1091,7 +1102,13 @@ class ZbxDaemon(Daemon):
             for cNode in  rjson['node']['nodes']:
                 key = cNode['key']
                 createdIndex = cNode['createdIndex']
-                cNode=json.loads(cNode['value'])
+                try:
+                    cNode=json.loads(cNode['value'])
+                except Exception as er:
+                    logger.error('json error lost command : '+str(cNode))
+                    self.delete_cmd(host,key)
+                    print('json error lost command : '+str(er))
+                    continue
                 cmd=cNode['cmd']
                 cmd = cmd.encode('utf-8')
                 md5 = cNode['md5']
@@ -1102,8 +1119,7 @@ class ZbxDaemon(Daemon):
                 if md5==self.util.md5(cmd+str(self.salt)):
 
                     # self.keys.append(key)
-                    url = "%s%s?recursive=true" % (host,key)
-                    self.util.url_fetch(url,httpCmd= 'DELETE' )
+                    self.delete_cmd(host,key)
                     def tmp():
                         print('cmd:',cmd)
                         result = ZbxCommand(cmd,is_log=True).run(float(timeout))
@@ -1126,21 +1142,17 @@ class ZbxDaemon(Daemon):
                 else:
                     print('salt error',self.salt)
                     logger.error('miss command %s ' %(cmd))
-                    url = "%s/%s?recursive=true" % (host,key)
-                    self.util.url_fetch(url,httpCmd= 'DELETE' )
+                    self.delete_cmd(host,key)
                     message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
                     self.remote_server('cli','feedback_result',message)
 
         except BaseException as e:
             try:
-                url = "%s/%s?recursive=true" % (host,key)
-                self.util.url_fetch(url,httpCmd= 'DELETE' )
+                self.delete_cmd(host,key)
                 logger.error('lost command : '+str(cNode))
             except Exception as er:
                 pass
-
             logger.error('feedback_result error:'+str(e))
-            print("feed error")
             print(e)
 
 
