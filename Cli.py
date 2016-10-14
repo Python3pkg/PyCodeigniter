@@ -719,7 +719,7 @@ class Cli:
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
             data={'value': json.dumps( data_raw) }
             # data=urllib.urlencode(data)
-            url="%s/keys%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid)
+            url="%s%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid)
             # req = urllib2.Request(
             #         url =url,
             #         data=data
