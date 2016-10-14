@@ -1135,7 +1135,7 @@ class ZbxDaemon(Daemon):
             try:
                 url = "%s/%s?recursive=true" % (host,key)
                 self.util.url_fetch(url,httpCmd= 'DELETE' )
-                self.logger.error('lost command : '+str(cNode))
+                logger.error('lost command : '+str(cNode))
             except Exception as er:
                 pass
 
