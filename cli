@@ -280,7 +280,7 @@ class Daemon(object):
 
         def stop(self):
                 try:
-                        pf = file(self.pidfile,'r')
+                        pf = open(self.pidfile,'r')
                         pid = int(pf.read().strip())
                         pf.close()
                 except IOError:
