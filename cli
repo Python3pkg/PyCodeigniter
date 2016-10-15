@@ -66,7 +66,7 @@ def init_log():
                 format=log_fmt_str,
                 filemode='a+')
     if PY3:
-        log_fmt_str='%(levelname)s[%(asctime)s]:%(message)s'
+        log_fmt_str='%(levelname)s[%(asctime)s][%(lineno)d]:%(message)s'
         logging.basicConfig(level=logging.DEBUG,
                 format=log_fmt_str)
     logger = logging.getLogger('CLI')
@@ -239,7 +239,7 @@ class Daemon(object):
                 sys.stderr.flush()
                 si = open(self.stdin, 'r')
                 so = open(self.stdout, 'a+')
-                se = open(self.stderr, 'a+', 0)
+                se = open(self.stderr, 'a+')
                 os.dup2(si.fileno(), sys.stdin.fileno())
                 os.dup2(so.fileno(), sys.stdout.fileno())
                 os.dup2(se.fileno(), sys.stderr.fileno())
@@ -557,6 +557,8 @@ class ZbxCommon(object):
 
     def md5(self, src):
         m2 = hashlib.md5()
+        if PY3:
+            src=str(src).encode('utf-8','ignore')
         m2.update(src)
         return m2.hexdigest()
 
@@ -1116,8 +1118,9 @@ class ZbxDaemon(Daemon):
                     print('json error lost command : '+str(er))
                     continue
                 cmd=cNode['cmd']
-                cmd = cmd.encode('utf-8')
-                md5 = cNode['md5']
+                if PY2:
+                    cmd = cmd.encode('utf-8')
+                md5 = str(cNode['md5'])
                 if 'timeout' in cNode.keys():
                     timeout = float(cNode['timeout'])
                 else:
@@ -1129,7 +1132,6 @@ class ZbxDaemon(Daemon):
                     def tmp():
                         print('cmd:',cmd)
                         result = ZbxCommand(cmd,is_log=True).run(float(timeout))
-                        #print(type(result))
                         try:
                             result=result.decode('utf-8')
                         except Exception as utfer:
@@ -1141,6 +1143,7 @@ class ZbxDaemon(Daemon):
                                 except Exception as ler:
                                     pass
                         message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
+                        # print(message)
                         # print(type(message))
                         self.remote_server('cli','feedback_result',message)
                         # print(json.dumps(message))
