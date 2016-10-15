@@ -66,6 +66,7 @@ def init_log():
                 format=log_fmt_str,
                 filemode='a+')
     if PY3:
+        log_fmt_str='%(levelname)s[%(asctime)s]:%(message)s'
         logging.basicConfig(level=logging.DEBUG,
                 format=log_fmt_str)
     logger = logging.getLogger('CLI')
@@ -236,9 +237,9 @@ class Daemon(object):
                 # redirect standard file descriptors
                 sys.stdout.flush()
                 sys.stderr.flush()
-                si = file(self.stdin, 'r')
-                so = file(self.stdout, 'a+')
-                se = file(self.stderr, 'a+', 0)
+                si = open(self.stdin, 'r')
+                so = open(self.stdout, 'a+')
+                se = open(self.stderr, 'a+', 0)
                 os.dup2(si.fileno(), sys.stdin.fileno())
                 os.dup2(so.fileno(), sys.stdout.fileno())
                 os.dup2(se.fileno(), sys.stderr.fileno())
@@ -247,14 +248,14 @@ class Daemon(object):
                 atexit.register(self.delpid)
                 pid = str(os.getpid())
                 self.pid=pid
-                file(self.pidfile,'w+').write("%s\n" % pid)
+                open(self.pidfile,'w+').write("%s\n" % pid)
 
         def delpid(self):
                 os.remove(self.pidfile)
 
         def start(self):
                 try:
-                        pf = file(self.pidfile,'r')
+                        pf = open(self.pidfile,'r')
                         pid = int(pf.read().strip())
                         pf.close()
                 except IOError:
