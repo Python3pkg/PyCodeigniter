@@ -20,9 +20,9 @@ def net_stats(interface=None):
                 try:
                     data = line.split('%s:' % interface)[1].split()
                     rx_bits, tx_bits = (int(data[0]) * 8, int(data[8]) * 8)
-                    return {interface:[rx_bits,tx_bits]}
+                    return {interface:{'rx':rx_bits,'tx':tx_bits}}
                 except Exception as er:
-                    return {interface:[-1,-1]}
+                    return {interface:{'tx':-1,'tx':-1}}
     for interface in devices:
         results.append(_calc(interface,content))
     return results
@@ -35,7 +35,7 @@ def mem_stats():
                 mem_total = int(line.split()[1]) * 1024
             if line.startswith('MemFree:'):
                 mem_used = mem_total - (int(line.split()[1]) * 1024)
-    return [mem_used, mem_total]
+    return {'used':mem_used, 'total':mem_total}
 
 
 def cpu_util(sample_duration=1):
@@ -48,7 +48,7 @@ def cpu_util(sample_duration=1):
     idle_delta = deltas[3]
     total = sum(deltas)
     util_pct = 100 * (float(total - idle_delta) / total)
-    return util_pct
+    return round(util_pct,3)
 
 
 def disk_busy(device=None, sample_duration=1):
@@ -78,7 +78,7 @@ def disk_busy(device=None, sample_duration=1):
             delta = int(io_ms2) - int(io_ms1)
             total = sample_duration * 1000
             busy_pct = 100 - (100 * (float(total - delta) / total))
-            return { '%s' % device:busy_pct}
+            return { '%s' % device:round(busy_pct,3)}
         except Exception as er:
             return { '%s' % device:-1}
 
@@ -91,7 +91,7 @@ def load_avg():
     with open('/proc/loadavg') as f:
         line = f.readline()
     load_avg1,load_avg5,load_avg15 = float(line.split()[0]),float(line.split()[1]),float(line.split()[2])  # 1 minute load average
-    return [load_avg1,load_avg5,load_avg15]
+    return {'load1':round( load_avg1,2),'load5':round( load_avg5,2),'load15': round(load_avg15,2)}
 
 def main():
     result={}
