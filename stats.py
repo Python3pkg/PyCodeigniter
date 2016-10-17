@@ -11,7 +11,7 @@ def net_stats(interface=None):
     if interface==None:
         for i in content.splitlines():
             if ':' in i.split()[0]:
-                devices.append(i.split()[0].replace(':',''))
+                devices.append(i.split()[0].split(':')[0])
     else:
         devices.append(interface)
     def _calc(interface,content):
