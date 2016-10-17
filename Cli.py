@@ -204,7 +204,7 @@ class HeartBeat(object):
 
         etcd=self.getetcd(params)
 
-        if status!='':
+        if status!='' and status!='{}':
             return {'etcd':etcd, 'salt':salt}
         else:
             return {'etcd':etcd, 'salt':salt,'shell':self.shellstr()}
@@ -488,6 +488,33 @@ class Cli:
         threading.Thread(target=_tmp).start()
         return 'ok'
 
+    def _parse_hd_for_influxdb(self,data):
+        def get_key(dinput,pre=''):
+            ilist = []
+            type_input = type(dinput)
+            if type_input == dict:
+                for key in dinput.keys():
+                    val = dinput[key]
+                    ilist += get_key(val,pre+"."+key)
+                return ilist
+            if type_input == list:
+                for index in range(len(dinput) ):
+                    obj = dinput[index]
+                    if type(obj) == dict or type(obj) == list:
+                        ilist += get_key(obj,pre)
+                    else:
+                        ilist += get_key(obj,"%s.%s" % (pre,index) )
+                return ilist
+            if type_input != dict:
+                ilist.append({'%s'%(pre):'%s'%(dinput)})
+                return ilist
+        data=get_key(data,'')
+        kvs=dict()
+        for kv in data:
+            for k in kv.keys():
+                kvs[k]=kv[k]
+        return  kvs
+
 
     def hb2influxdb(self,req,resp):
         return self._hb2influxdb()
@@ -509,20 +536,29 @@ class Cli:
                     if ret!=None:
                         data=json.loads(ret)
                         json_body=[]
-                        for i in ['cpu','disk','mem','load','iowait','net']:
+                        kvs=self._parse_hd_for_influxdb(data)
+                        for kv in kvs:
+                            val=0.0
+                            if len(kv)>1:
+                                key=kv[1:]
+                            try:
+                                val=round( float(kvs[kv]),3)
+                            except Exception as er:
+                                continue
                             row={
                                 "measurement": "system_status",
                                 "tags": {
-                                    "uuid": data['uuid'],
-                                    'mtype':i,
+                                    "uuid": kvs['.uuid'],
+                                    'mtype':key,
                                     #"hostname": data['hostname'],
                                 },
                                 #"time": time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(data['time'])),
                                 "fields": {
-                                    "value":float(data[i]),
+                                    "value":val,
                                 }
                             }
                             json_body.append(row)
+
                         client.write_points(json_body)
                     else:
                         time.sleep(0.5)
