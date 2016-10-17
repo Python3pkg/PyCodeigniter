@@ -1015,7 +1015,7 @@ class ZbxDaemon(Daemon):
             file_path=script_path+os.path.sep+'.'+filename
             if not os.path.exists(script_path):
                 self.util.execute('mkdir -p %s'%script_path)
-            if not os.path.exists(file_path) and self.shellstr!='':
+            if self.shellstr!='':
                 open(file_path,'w').write(self.shellstr)
                 os.chmod(file_path,777)
             cmd=ZbxCommand('%s %s'%(PYTHON_PATH,file_path),is_log=False)
