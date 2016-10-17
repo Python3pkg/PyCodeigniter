@@ -994,9 +994,18 @@ class ZbxDaemon(Daemon):
             # return self.get_etcd()
 
     def status(self):
-        #return self.util.execute(self.shellstr)
-        cmd=ZbxCommand(self.shellstr,is_log=False)
-        return cmd.run()
+        try:
+            filename='heartbeat'
+            file_path=script_path+os.path.sep+'.'+filename
+            if not os.path.exists(file_path) and self.shellstr!='':
+                open(file_path,'w').write(self.shellstr)
+                os.chmod(file_path,777)
+            cmd=ZbxCommand(file_path,is_log=False)
+            return cmd.run()
+        except Exception as er:
+            if global_debug:
+                print(er)
+            return '{}'
 
     def heartbeat2server(self):
         try:
@@ -1012,6 +1021,7 @@ class ZbxDaemon(Daemon):
             self.etcd_conf=objs['etcd']
             if 'shell' in objs.keys():
                 self.shellstr=objs['shell']
+
                 # print(self.util.execute(self.shellstr))
 
             self.etcd_list=objs['etcd']['server']
@@ -1167,6 +1177,10 @@ class ZbxDaemon(Daemon):
 
 
     def sync_conf(self):
+        try:
+            self.heartbeat2server()
+        except Exception as er:
+            pass
         while True:
             try:
                 # self.get_etcd()
