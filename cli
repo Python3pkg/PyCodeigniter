@@ -66,7 +66,7 @@ def init_log():
                 format=log_fmt_str,
                 filemode='a+')
     if PY3:
-        log_fmt_str='%(levelname)s[%(asctime)s][%(lineno)d]:%(message)s'
+        log_fmt_str='%(asctime)s %(module)s:%(lineno)d  %(levelname)s %(message)s'
         logging.basicConfig(level=logging.DEBUG,
                 format=log_fmt_str)
     logger = logging.getLogger('CLI')
@@ -441,8 +441,10 @@ class ZbxCommon(object):
 
 
             html=handle.read()
-
-            charset=re.compile(b'<meta[^>]*charset=[\'\"]*?([a-z0-8\-]+)[\'\"]?[^>]*?>',re.IGNORECASE).findall(html)
+            cm=r'<meta[^>]*charset=[\'\"]*?([a-z0-8\-]+)[\'\"]?[^>]*?>'
+            if PY3:
+                cm=cm.encode('utf-8','ignore')
+            charset=re.compile(cm,re.IGNORECASE).findall(html)
             if len(charset) >0:
                 if charset[0]=='gb2312':
                     charset[0]='gbk'
