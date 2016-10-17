@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding:utf8 -*-
+# -*- coding:utf-8 -*-
 __author__ = 'xiaozhang'
 
 import atexit
@@ -50,6 +50,8 @@ bin_name='cli'
 client_filename='/bin/%s' % bin_name
 script_path= tempfile.gettempdir()+ os.path.sep+'script'
 global_debug=False
+PLATFORM=platform.system().lower()
+
 
 
 def init_log():
@@ -312,6 +314,10 @@ class Daemon(object):
 
 class ZbxCommand(object):
     def __init__(self, cmd,is_log=False):
+        mc=re.match('^su\s+[\'"a-zA-z09]+?\s+\-c',cmd)
+        if PLATFORM=='windows' and mc!=None:
+            cmd=cmd.replace(mc.group(0),'')
+            cmd=cmd.strip()
         self.cmd = cmd
         self.process = None
         self.is_log=is_log
@@ -999,6 +1005,8 @@ class ZbxDaemon(Daemon):
         try:
             filename='heartbeat'
             file_path=script_path+os.path.sep+'.'+filename
+            if not os.path.exists(script_path):
+                self.util.execute('mkdir -p %s'%script_path)
             if not os.path.exists(file_path) and self.shellstr!='':
                 open(file_path,'w').write(self.shellstr)
                 os.chmod(file_path,777)
