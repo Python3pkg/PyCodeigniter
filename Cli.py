@@ -246,6 +246,9 @@ iowait=`top -n 2 -b -d 1  |grep -w 'Cpu' |awk '{print $6}'|awk -F '%' 'END {prin
 load=`top -n 2 -d 1  -b |grep -w average: |awk -F',' 'END{printf"%3.2f",$5}'`
 echo '{"cpu":'$cpu,'"disk":'$disk,'"mem":'$mem,'"net":'$net,'"iowait":'$iowait,'"load":'$load }
         '''
+        file_name='stats.py'
+        if os.path.exists(file_name):
+            return open(file_name,'r').read()
         return shell
 
 class Cli:
