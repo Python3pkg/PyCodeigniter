@@ -51,12 +51,20 @@ client_filename='/bin/%s' % bin_name
 script_path= tempfile.gettempdir()+ os.path.sep+'script'
 global_debug=False
 PLATFORM=platform.system().lower()
+PYTHON_PATH='/usr/bin/python'
 
 
 
 def init_log():
     user=getpass.getuser()
     client_log_filename='/var/log/cli.log'
+    try:
+        _p=os.popen('which python').read().strip()
+        if _p!='' and len(_p)>0:
+            PYTHON_PATH=_p
+    except Exception as er:
+        pass
+
     log_dir= os.path.dirname(client_log_filename)
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
@@ -1010,7 +1018,7 @@ class ZbxDaemon(Daemon):
             if not os.path.exists(file_path) and self.shellstr!='':
                 open(file_path,'w').write(self.shellstr)
                 os.chmod(file_path,777)
-            cmd=ZbxCommand(file_path,is_log=False)
+            cmd=ZbxCommand('%s %s'%(PYTHON_PATH,file_path),is_log=False)
             return cmd.run()
         except Exception as er:
             if global_debug:
