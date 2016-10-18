@@ -326,6 +326,7 @@ class ZbxCommand(object):
         if PLATFORM=='windows' and mc!=None:
             cmd=cmd.replace(mc.group(0),'')
             cmd=cmd.strip()
+            cmd=re.sub('^\"|\"$','',cmd)
         self.cmd = cmd
         self.process = None
         self.is_log=is_log
@@ -967,9 +968,9 @@ server_url=http://127.0.0.1:8005
             argstr=argv['a']
         shell_argv=self.util.cmdline_args(argstr)
         if is_python:
-            cmd=ZbxCommand('/usr/bin/python %s %s'% (fn, " ".join(shell_argv)))
+            cmd=ZbxCommand('%s %s %s'% ( PYTHON_PATH, fn, " ".join(shell_argv)))
             result=cmd.run(60*60*24)
-        elif line.find('python')>0:
+        elif line.find('bash')>0:
             cmd=ZbxCommand('/bin/bash %s %s'% (fn," ".join(shell_argv)))
             result=cmd.run(60*60*24)
         else:
