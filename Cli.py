@@ -144,8 +144,9 @@ class HeartBeat(object):
         for d in self.data:
             if d['status']==status:
                 d['utime']=  time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(d['utime']))
-                if 'ips' in d:
-                    del d['ips']
+                for i in ['ips','salt','status_os']:
+                    if i in d:
+                        del d[i]
                 result.append(d)
         return  result
 
