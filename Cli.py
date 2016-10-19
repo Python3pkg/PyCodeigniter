@@ -263,6 +263,7 @@ class Cli:
         self.CMDB_OPTION_PREFIX='cmdb_options_'
         self.HEARTBEAT_UUID_MAP_IP_KEY='heartbeat_uuid_ip'
         self.HEARTBEAT_IP_MAP_UUID_KEY='heartbeat_ip_uuid'
+        self.COMMNAD_PREFIX='cmd_'
         self._cmdb=None
         self.hb=HeartBeat()
         self.has_hd2db=False
@@ -729,6 +730,19 @@ class Cli:
             result.append(str(_encryption(ord(char),e,n)))
         return base64.encodestring(','.join(result))
 
+    def get_cmd(self,req,resp):
+        params=self._params(req.params['param'])
+        if 'uuid' in params and 'index' in params:
+            key= '%s%s%s'%( self.COMMNAD_PREFIX,params['uuid'],params['index'])
+            ret=ci.redis.get(key)
+            if ret!=None:
+                return json.loads(ret)
+            else:
+                return '{}'
+        else:
+            return 'invalid request'
+
+
     def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
 
         try:
@@ -756,8 +770,12 @@ class Cli:
             if puuid=='' or salt=='':
                 return '(error)client not online'
             cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
+            cmd=cmd.decode('utf-8')
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
-            data={'value': json.dumps( data_raw) }
+            cmd_uuid=ci.uuid()
+            data={'value':cmd_uuid }
+
+
             # data=urllib.urlencode(data)
             url="%s%s/servers/%s/"%(etcd['server'][0],etcd['prefix'],puuid)
             # req = urllib2.Request(
@@ -772,7 +790,7 @@ class Cli:
             key_file=cert.get('key_file','/etc/cli/etcd-worker-key.pem')
             cert_file=cert.get('cert_file','/etc/cli/etcd-worker.pem')
             # ret=requests.post(url,data,timeout=10,verify=False,cert=( cert_file,key_file )).json()
-            ret=self.opener.post(url,data,timeout=10,verify=False).json()
+            ret=requests.post(url,data,timeout=10,verify=False).json()
 
 
 
@@ -785,10 +803,13 @@ class Cli:
             # pl=ci.redis.pipeline()
             ci.redis.sadd(self.TASK_LIST_KEY,index)
 
+            ci.redis.setex('%s%s%s'%(self.COMMNAD_PREFIX,cmd_uuid,index),60*30,json.dumps(data_raw))
+
             start=time.time()
             if async=='1':
                 return index
-            if json.loads(ret['node']['value'])['cmd']==cmd:
+            # if json.loads(ret['node']['value'])['cmd']==cmd:
+            if True:
                 del data_raw['md5']
                 del data_raw['timeout']
                 data_raw['task_id']=index

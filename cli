@@ -41,9 +41,9 @@ import getpass
 
 
 pidfile="/var/cli.pid"
-server_url="http://172.17.140.116:8006"
+server_url="http://172.17.140.116:8005"
 server_url="http://10.3.155.104:8005"
-#server_url="http://172.16.119.3:8006"
+
 configfile='/etc/cli'
 default_module='cli'
 bin_name='cli'
@@ -1020,7 +1020,8 @@ class ZbxDaemon(Daemon):
                 open(file_path,'w').write(self.shellstr)
                 os.chmod(file_path,777)
             cmd=ZbxCommand('%s %s'%(PYTHON_PATH,file_path),is_log=False)
-            return cmd.run()
+            ret= cmd.run()
+            return json.dumps(json.loads(ret))
         except Exception as er:
             if global_debug:
                 print(er)
@@ -1117,6 +1118,101 @@ class ZbxDaemon(Daemon):
             print(er)
 
     def feedback_result(self,ip,host,content):
+            try:
+                # logger.info("process cmd")
+                if content == "Not Found":
+                    print("no found key")
+                    return
+                rjson = json.loads(content)
+                if not rjson['node'].get('dir',False):
+                    url = "%s/%s?recursive=true" % (host,rjson['node']['key'])
+                    print("feedback_result"+ url)
+                    self.util.url_fetch(url,httpCmd= 'DELETE' )
+                    logger.info("publish is no dir")
+                    return
+
+                if not rjson['node'].get('nodes'):
+                    # logger.info("no found command")
+                    return
+
+                logger.info("process cmd")
+                key=''
+                data={}
+                for cNode in  rjson['node']['nodes']:
+                    key = cNode['key']
+                    createdIndex = cNode['createdIndex']
+                    try:
+                        # cNode=json.loads(cNode['value'])
+                        cmd_uuid=str(cNode['value'])
+                    except Exception as er:
+                        logger.error('json error lost command : '+str(cNode))
+                        self.delete_cmd(host,key)
+                        print('json error lost command : '+str(er))
+                        continue
+                    # cmd=cNode['cmd']
+                    # if PY2:
+                    #     cmd = cmd.encode('utf-8')
+                    # md5 = str(cNode['md5'])
+
+
+                    argv={'uuid':cmd_uuid,'index':createdIndex}
+                    ret=self.util.url_fetch_witherr(server_url+'/%s/%s'%(module,'get_cmd'),{'param':json.dumps(argv)},timeout=10)
+                    if ret=='' or ret=='{}' or len(json.loads(ret))==0:
+                        self.delete_cmd(host,key)
+                        continue
+                    data=json.loads(ret)
+                    if PY2:
+                        cmd = data['cmd'].encode('utf-8')
+                    if PY3:
+                        cmd=data['cmd']
+                    md5 = str(data['md5'])
+
+
+                    if 'timeout' in data.keys():
+                        timeout = float(data['timeout'])
+                    else:
+                        timeout=30
+                    if md5==self.util.md5(cmd+str(self.salt)):
+
+                        # self.keys.append(key)
+                        self.delete_cmd(host,key)
+                        def tmp():
+                            print('cmd:',cmd)
+                            result = ZbxCommand(cmd,is_log=True).run(float(timeout))
+                            try:
+                                result=result.decode('utf-8')
+                            except Exception as utfer:
+                                try:
+                                    result=result.decode('gbk')
+                                except Exception as gbker:
+                                    try:
+                                        result=result.decode('utf-8','ignore')
+                                    except Exception as ler:
+                                        pass
+                            message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
+                            # print(message)
+                            # print(type(message))
+                            self.remote_server('cli','feedback_result',message)
+                            # print(json.dumps(message))
+                        threading.Thread(target=tmp).start()
+                    else:
+                        print('salt error',self.salt)
+                        logger.error('miss command %s ' %(cmd))
+                        self.delete_cmd(host,key)
+                        message = {'ip':ip, 'cmd':cmd, 'result':'valid salt','index':createdIndex}
+                        self.remote_server('cli','feedback_result',message)
+
+            except BaseException as e:
+                try:
+                    self.delete_cmd(host,key)
+                    logger.error('lost command : '+str(data))
+                except Exception as er:
+                    pass
+                logger.error('feedback_result error:'+str(e))
+                print(e)
+
+
+    def feedback_result2(self,ip,host,content):
         try:
             # logger.info("process cmd")
             if content == "Not Found":
