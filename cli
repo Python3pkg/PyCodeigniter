@@ -85,16 +85,18 @@ def init_log():
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter )
     logger.addHandler(file_handler)
-    if user=='root':
+    if user=='root' and PLATFORM!='windows':
         try:
-            os.popen('chattr -a %s'%(client_log_filename)).read()
-            os.chmod(client_log_filename,777)
-            os.popen('chattr +a %s'%(client_log_filename)).read()
+            if len(os.popen('command -v chattr').read())>1:
+                os.popen('chattr -a %s'%(client_log_filename)).read()
+                os.chmod(client_log_filename,777)
+                os.popen('chattr +a %s'%(client_log_filename)).read()
         except Exception as er:
             pass
     return logger
 
 logger=init_log()
+
 
 
 class CertificateError(ValueError):
