@@ -833,7 +833,7 @@ class Cli:
                         break
                     else:
                         time.sleep(0.5)
-                        ret=ci.redis.get(index)
+                        ret=ci.redis.get(cmd_uuid)
                         if ret!='' and ret!=None:
                             #ci.redis.srem(self.TASK_LIST_KEY,index)
                             try:
@@ -842,7 +842,7 @@ class Cli:
                                 # if isinstance(ret,basestring):
                                 #     return json.dumps(ret)
                                 return ret.decode('utf-8','ignore')
-                return '(success) submit command success,job id:%s'% (index)
+                return '(success) submit command success,job id:%s'% (cmd_uuid)
             else:
                 return '(unsafe) submit command success '
         except Exception as er:

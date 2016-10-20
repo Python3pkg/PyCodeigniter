@@ -42,7 +42,7 @@ import getpass
 
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8005"
-# server_url="http://10.3.155.104:8005"
+server_url="http://10.3.155.104:8005"
 
 configfile='/etc/cli'
 default_module='cli'
