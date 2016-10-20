@@ -42,7 +42,7 @@ import getpass
 
 pidfile="/var/cli.pid"
 server_url="http://172.17.140.116:8005"
-server_url="http://10.3.155.104:8005"
+# server_url="http://10.3.155.104:8005"
 
 configfile='/etc/cli'
 default_module='cli'
@@ -1191,7 +1191,7 @@ class ZbxDaemon(Daemon):
                                         result=result.decode('utf-8','ignore')
                                     except Exception as ler:
                                         pass
-                            message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex}
+                            message = {'ip':ip, 'cmd':cmd, 'result':result,'index':createdIndex,'task_id':cmd_uuid}
                             # print(message)
                             # print(type(message))
                             self.remote_server('cli','feedback_result',message)

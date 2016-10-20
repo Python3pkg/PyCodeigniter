@@ -327,20 +327,20 @@ class Cli:
     def feedback_result(self,req,resp):
         param=req.params['param']
         data=json.loads(param)
-        if 'index' in data.keys() and str(data['index']) in ci.redis.smembers(self.TASK_LIST_KEY):
+        if 'task_id' in data.keys() and str(data['task_id']) in ci.redis.smembers(self.TASK_LIST_KEY):
             # self.cmdkeys[str(data['index'])]=data['result']
             try:
                 pl=ci.redis.pipeline()
-                pl.setex(str(data['index']),60*5,data['result'])
+                pl.setex(str(data['task_id']),60*5,data['result'])
                 dd={}
                 dd['utime']=int(time.time())
-                dd['task_id']=str(data['index'])
+                dd['task_id']=str(data['task_id'])
                 if data['result']=='13800138000':
                     dd['result']='(error) time out'
                 dd['result']=data[u'result']
                 pl.lpush(self.RESULT_LIST_KEY,json.dumps(dd))
                 pl.ltrim(self.RESULT_LIST_KEY,0,20000)
-                pl.srem(self.TASK_LIST_KEY,str(data['index']))
+                pl.srem(self.TASK_LIST_KEY,str(data['task_id']))
                 pl.execute()
             except Exception as er:
                 print(er)
@@ -733,7 +733,8 @@ class Cli:
     def get_cmd(self,req,resp):
         params=self._params(req.params['param'])
         if 'uuid' in params and 'index' in params:
-            key= '%s%s%s'%( self.COMMNAD_PREFIX,params['uuid'],params['index'])
+            # key= '%s%s%s'%( self.COMMNAD_PREFIX,params['uuid'],params['index'])
+            key= '%s%s'%( self.COMMNAD_PREFIX,params['uuid'])
             ret=ci.redis.get(key)
             if ret!=None:
                 return json.loads(ret)
@@ -756,6 +757,7 @@ class Cli:
             objs=self.hb.get_product_uuid(ip)
             salt=''
             puuid=''
+            start=time.time()
             if objs==None  or len(objs)==0:
                 return '(error) invalid ip'
             elif len(objs)==1:
@@ -772,7 +774,16 @@ class Cli:
             cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             cmd=cmd.decode('utf-8')
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
-            cmd_uuid=ci.uuid()
+            cmd_uuid=ci.md5( ci.uuid()+ ci.uuid())
+            ci.redis.setex('%s%s'%(self.COMMNAD_PREFIX,cmd_uuid),60*30,json.dumps(data_raw))
+            ci.redis.sadd(self.TASK_LIST_KEY,cmd_uuid)
+            del data_raw['md5']
+            del data_raw['timeout']
+            data_raw['task_id']=cmd_uuid
+            data_raw['ctime']=int(start)
+            data_raw['uuid']=ip
+            data_raw['result']=''
+            ci.redis.lpush(self.RESULT_LIST_KEY,json.dumps(data_raw))
             data={'value':cmd_uuid }
 
 
@@ -801,22 +812,17 @@ class Cli:
             self.cmdkeys[index]=''
             #ci.redis.sadd('indexs',index)
             # pl=ci.redis.pipeline()
-            ci.redis.sadd(self.TASK_LIST_KEY,index)
 
-            ci.redis.setex('%s%s%s'%(self.COMMNAD_PREFIX,cmd_uuid,index),60*30,json.dumps(data_raw))
 
-            start=time.time()
+
+
+
             if async=='1':
                 return index
             # if json.loads(ret['node']['value'])['cmd']==cmd:
             if True:
-                del data_raw['md5']
-                del data_raw['timeout']
-                data_raw['task_id']=index
-                data_raw['ctime']=int(start)
-                data_raw['uuid']=ip
-                data_raw['result']=''
-                ci.redis.lpush(self.RESULT_LIST_KEY,json.dumps(data_raw))
+
+
 
 
                 # pl.execute()
