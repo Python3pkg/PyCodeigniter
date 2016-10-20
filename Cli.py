@@ -346,8 +346,7 @@ class Cli:
                 print(er)
                 ci.logger.error(er)
                 pass
-
-        ci.logger.info("index:%s,ip:%s,result:\n%s"%(str(data['index']), data['ip'],data['result']))
+        ci.logger.info("task_id:%s,%index:%s,ip:%s,result:\n%s"%(data['task_id'], str(data['index']), data['ip'],data['result']))
 
     def uuid(self,req,resp):
         return ci.uuid()
