@@ -12,6 +12,7 @@ import sys
 import random
 import re
 import os
+import threading
 
 
 KVM_TPL='''
@@ -103,8 +104,12 @@ class VM(object):
         self.tpl=self.get_tpl()
         self.mac=self.get_mac()
         self.vmargs=self.gen_vmargs()
-        self.get_image()
-        self.gen_disk()
+        thread_img=threading.Thread(target=self.get_image)
+        thread_disk=threading.Thread(target=self.gen_disk)
+        thread_img.start()
+        thread_disk.start()
+        thread_img.join()
+        thread_disk.join()
         self.gen_xml()
         self.define()
         self.start()
