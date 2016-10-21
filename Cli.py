@@ -937,6 +937,9 @@ class Cli:
             timeout= float( params['t'])
         if  'u' in params:
             user= params['u']
+        root_cmd=ci.config.get('root_cmd',False)
+        if not root_cmd and  user=='root':
+            return "u(user) can't be root"
         if  'o' in params:
             out= params['o']
             if out not in ['json','text']:
