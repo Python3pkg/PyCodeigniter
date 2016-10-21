@@ -817,7 +817,7 @@ class Cli:
 
 
             if async=='1':
-                return index
+                return cmd_uuid
             # if json.loads(ret['node']['value'])['cmd']==cmd:
             if True:
 
