@@ -332,31 +332,45 @@ class ZbxCommand(object):
         self.cmd = cmd
         self.process = None
         self.is_log=is_log
+        self.util=ZbxCommon()
         self.uuid=str(datetime.datetime.now()).replace(' ','').replace(':','').replace('-','').replace('.','')
         self.result=open(tempfile.gettempdir()+ os.path.sep +self.uuid,'a+')
 
 
-    def run(self, timeout=30):
+    def run(self, timeout=30,task_id='', url_success='',url_error=''):
+        return_code=0
+        def feedback(url,result,task_id):
+            try:
+                self.util.url_fetch(url_success,{ 'cmd':self.cmd,'machine_id':self.util.get_product_uuid(),'task_id':task_id,'result':result},timeout=5)
+            except Exception as er:
+                pass
+
         def target():
             if self.is_log:
                 logger.info(self.cmd)
             self.process = subprocess.Popen(self.cmd, shell=True,stdout=self.result,stderr=self.result)
             self.process.communicate()
+            return_code=self.process.poll()
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
+
         if thread.is_alive():
             logger.warn(self.cmd)
             self.process.terminate()
             thread.join()
-            util=ZbxCommon()
-            util.url_fetch(server_url+'/slowlog',{'param':{ 'cmd':self.cmd,'ip':util.get_one_ip()}})
+            feedback(url_error,'timeout',task_id)
+            #util.url_fetch(server_url+'/slowlog',{'param':{ 'cmd':self.cmd,'ip':util.get_one_ip()}})
             return "13800138000"
         result= open(tempfile.gettempdir()+ os.path.sep+self.uuid,'r').read()
         try:
             os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
         except Exception as er:
             pass
+        if  not return_code and url_success!='':
+            feedback(url_success,result,task_id)
+        if return_code and url_error!='':
+            feedback(url_error,result,task_id)
         return result
 
 
@@ -1169,6 +1183,9 @@ class ZbxDaemon(Daemon):
                         cmd=data['cmd']
                     md5 = str(data['md5'])
 
+                    url_success=data.get('url_success','')
+                    url_error=data.get('url_error','')
+
 
                     if 'timeout' in data.keys():
                         timeout = float(data['timeout'])
@@ -1180,7 +1197,7 @@ class ZbxDaemon(Daemon):
                         self.delete_cmd(host,key)
                         def tmp():
                             print('cmd:',cmd)
-                            result = ZbxCommand(cmd,is_log=True).run(float(timeout))
+                            result = ZbxCommand(cmd,is_log=True).run(float(timeout),task_id=cmd_uuid,url_success=url_success,url_error=url_error)
                             try:
                                 result=result.decode('utf-8')
                             except Exception as utfer:
