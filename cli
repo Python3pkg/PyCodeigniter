@@ -332,16 +332,16 @@ class ZbxCommand(object):
         self.cmd = cmd
         self.process = None
         self.is_log=is_log
+        self.return_code=0
         self.util=ZbxCommon()
         self.uuid=str(datetime.datetime.now()).replace(' ','').replace(':','').replace('-','').replace('.','')
         self.result=open(tempfile.gettempdir()+ os.path.sep +self.uuid,'a+')
 
 
     def run(self, timeout=30,task_id='', url_success='',url_error=''):
-        return_code=0
         def feedback(url,result,task_id):
             try:
-                self.util.url_fetch(url_success,{ 'cmd':self.cmd,'machine_id':self.util.get_product_uuid(),'task_id':task_id,'result':result},timeout=5)
+                self.util.url_fetch(url,{ 'cmd':self.cmd,'machine_id':self.util.get_product_uuid(),'task_id':task_id,'result':result},timeout=5)
             except Exception as er:
                 pass
 
@@ -350,7 +350,7 @@ class ZbxCommand(object):
                 logger.info(self.cmd)
             self.process = subprocess.Popen(self.cmd, shell=True,stdout=self.result,stderr=self.result)
             self.process.communicate()
-            return_code=self.process.poll()
+            self.return_code=self.process.poll()
         thread = threading.Thread(target=target)
         thread.start()
         thread.join(timeout)
@@ -367,9 +367,9 @@ class ZbxCommand(object):
             os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
         except Exception as er:
             pass
-        if  not return_code and url_success!='':
+        if  self.return_code==0 and url_success!='':
             feedback(url_success,result,task_id)
-        if return_code and url_error!='':
+        if self.return_code!=0 and url_error!='':
             feedback(url_error,result,task_id)
         return result
 
