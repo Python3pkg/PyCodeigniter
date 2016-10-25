@@ -743,7 +743,7 @@ class Cli:
             return 'invalid request'
 
 
-    def _cmd(self,ip,cmd,timeout=10,user='root',async="0"):
+    def _cmd(self,ip,cmd,timeout=10,user='root',async="0",kw={}):
 
         try:
             if isinstance(ip,dict):
@@ -773,6 +773,7 @@ class Cli:
             cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             cmd=cmd.decode('utf-8')
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
+            data_raw.update(kw)
             cmd_uuid=ci.md5( ci.uuid()+ ci.uuid())
             ci.redis.setex('%s%s'%(self.COMMNAD_PREFIX,cmd_uuid),60*30,json.dumps(data_raw))
             ci.redis.sadd(self.TASK_LIST_KEY,cmd_uuid)
@@ -952,12 +953,15 @@ class Cli:
         ci.logger.info(json.dumps(lg))
         result={}
         failsip=[]
+        url_success=params.get('url_success','')
+        url_error=params.get('url_error','')
+        kw={'url_success':url_success,'url_error':url_error}
 
         def task(q):
             while True:
                 if not tqs.empty():
                     i=tqs.get()
-                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async)
+                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async,kw=kw)
                     gevent.sleep(0)
                 else:
                     break
