@@ -748,6 +748,9 @@ class Cli:
         params=self._params(req.params['param'])
         ci.logger.info('remote execute api'+ client_ip+ json.dumps(params))
         token=params.get('token','')
+        user=params.get('u','')
+        if not 'u' in params:
+            return '-u(user) is required'
         if 'sudo' in params:
             sudo=True if params['sudo']=='1' or params['sudo']=='true' else False
         if token=='':
@@ -759,7 +762,7 @@ class Cli:
             return 'invalid token'
         if not client_ip  in str(row['ip']).split(','):
             return 'ip not in white list'
-        if params['u']!= str(row['user']):
+        if user!= str(row['user']):
             return 'invalid user'
         ip= params.get('i','')
         if ip=='':
