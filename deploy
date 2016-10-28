@@ -1,12 +1,15 @@
 python -c 'from codeigniter import CI_Application;CI_Application("./")'
-sed -i "s#http:\/\/127.0.0.1:8005#${SERVER_URL:-http://127.0.0.1:8005}#" cli
 cp Cli.py controllers/Cli.py
 DIR=$(cd "$(dirname "$0")"; pwd)
 cd $DIR
 python pyobfuscate cli > clic
+sed -i "s#http:\/\/127.0.0.1:8005#${SERVER_URL:-http://127.0.0.1:8005}#" clic
 pyminifier  --gzip clic > cli.mini
 sed -i '/pyminifier/d' cli.mini
 rm clic -rf
-
+gunicorn=`command -v gunicorn`
+if [[ $? -eq 0 ]];then
+${gunicorn} -w 7 app_falcon:app -b '0.0.0.0:8005' -k gevent
+else
 python app.py
-
+fi
