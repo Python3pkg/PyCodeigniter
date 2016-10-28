@@ -893,6 +893,10 @@ server_url=http://127.0.0.1:8005
         print(result)
         return result
 
+    def info(self,argv):
+        info={'server':server_url,'version':1.0}
+        print(json.dumps(info,sort_keys=True,indent=2))
+
     def md5(self,argv):
         data= self.util.getopt(sys.argv[1:])
         if not 's' in data and not 'f' in data:
