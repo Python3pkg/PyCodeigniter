@@ -900,7 +900,10 @@ class Cli:
 
 
     def _client_ip(self,req):
-        return req.env['REMOTE_ADDR']
+        try:
+            return req.env['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
+        except KeyError:
+            return req.env['REMOTE_ADDR']
 
 
 
