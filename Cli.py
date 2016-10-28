@@ -742,8 +742,35 @@ class Cli:
         else:
             return 'invalid request'
 
+    def api(self,req,resp):
+        client_ip=req.env['REMOTE_ADDR']
+        self._init_cmdb()
+        params=self._params(req.params['param'])
+        ci.logger.info('remote execute api'+ client_ip+ json.dumps(params))
+        token=params.get('token','')
+        if 'sudo' in params:
+            sudo=True if params['sudo']=='1' or params['sudo']=='true' else False
+        if token=='':
+            return 'token is required'
+        row=self._cmdb.scalar("select * from ops_auth where token='{token}' limit 1",{'token':token})
+        if len(row)==0:
+            return 'token not exist'
+        if token!=row['token']:
+            return 'invalid token'
+        if not client_ip  in str(row['ip']).split(','):
+            return 'ip not in white list'
+        if params['u']!= str(row['user']):
+            return 'invalid user'
+        ip= params.get('i','')
+        if ip=='':
+            return 'invalid ip'
+        if sudo and not ip in str(row['sudo_ips']).split(','):
+            return 'ip not permit'
+        return self._inner_cmd(req,resp)
 
-    def _cmd(self,ip,cmd,timeout=10,user='root',async="0",kw={}):
+
+
+    def _cmd(self,ip,cmd,timeout=10,user='root',sudo=False,async="0",kw={}):
 
         try:
             if isinstance(ip,dict):
@@ -770,7 +797,12 @@ class Cli:
 
             if puuid=='' or salt=='':
                 return '(error)client not online'
-            cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
+            if sudo:
+                cmd=cmd.encode('utf-8')
+            else:
+                if user=='root':
+                    return '(error) user root not permit'
+                cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             cmd=cmd.decode('utf-8')
             data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
             data_raw.update(kw)
@@ -923,6 +955,7 @@ class Cli:
         timeout=25
         async='0'
         out='text'
+        sudo=False
         if  'c' in params:
             cmd=params['c']
         else:
@@ -938,9 +971,9 @@ class Cli:
             timeout= float( params['t'])
         if  'u' in params:
             user= params['u']
-        root_cmd=ci.config.get('root_cmd',False)
-        if not root_cmd and  user=='root':
-            return "u(user) can't be root"
+        # root_cmd=ci.config.get('root_cmd',False)
+        # if not root_cmd and  user=='root':
+        #     return "u(user) can't be root"
         if  'o' in params:
             out= params['o']
             if out not in ['json','text']:
@@ -949,6 +982,8 @@ class Cli:
             return '-c(cmd) is danger'
         if  'async' in params:
             async= params['async']
+        if 'sudo' in params:
+            sudo=True if params['sudo']=='1' or params['sudo']=='true' else False
         lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
         ci.logger.info(json.dumps(lg))
         result={}
@@ -961,7 +996,7 @@ class Cli:
             while True:
                 if not tqs.empty():
                     i=tqs.get()
-                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,async=async,kw=kw)
+                    result[i]=self._cmd(i,cmd,timeout=timeout,user=user,sudo=sudo,async=async,kw=kw)
                     gevent.sleep(0)
                 else:
                     break
