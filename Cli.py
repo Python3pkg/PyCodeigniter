@@ -743,7 +743,7 @@ class Cli:
             return 'invalid request'
 
     def api(self,req,resp):
-        client_ip=req.env['REMOTE_ADDR']
+        client_ip=self._client_ip(req)
         self._init_cmdb()
         params=self._params(req.params['param'])
         ci.logger.info('remote execute api'+ client_ip+ json.dumps(params))
@@ -929,7 +929,7 @@ class Cli:
 
 
     def web_cmd(self,req,resp):
-        client_ip=req.env['REMOTE_ADDR']
+        client_ip=self._client_ip(req)
         if not self._is_web_while_ip(client_ip):
             return '(error) ip is not in white list.'
         params=self._params(req.params['param'])
@@ -942,7 +942,7 @@ class Cli:
 
     @auth
     def cmd(self,req,resp):
-        client_ip=req.env['REMOTE_ADDR']
+        client_ip=self._client_ip(req)
         op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
         if not self._is_while_ip(client_ip):
             return '(error) ip is not in white list.'
@@ -952,7 +952,7 @@ class Cli:
 
 
     def _inner_cmd(self,req,resp,web_cmd=False):
-        client_ip=req.env['REMOTE_ADDR']
+        client_ip=self._client_ip(req)
         op_user=''
         params=self._params(req.params['param'])
         cmd=''
