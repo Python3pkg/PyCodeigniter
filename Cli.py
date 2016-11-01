@@ -749,6 +749,7 @@ class Cli:
         ci.logger.info('remote execute api'+ client_ip+ json.dumps(params))
         token=params.get('token','')
         user=params.get('u','')
+        sudo=False
         if not 'u' in params:
             return '-u(user) is required'
         if 'sudo' in params:
