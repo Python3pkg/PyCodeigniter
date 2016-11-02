@@ -297,6 +297,12 @@ class Cli:
 
     def help(self,req,resp):
         h='''
+        ########## 远程执行 #################
+
+        cli api -u user -c command -i ip -t timeout(second) --sudo 1 --token token
+        exmaple:
+        cli api -u test -c 'ps aux|grep java' -i 10.3.155.90 -t 30 --sudo 1 --token 0CF1F1AD-5784-4BCA-BCD1-F8F2CCB34719
+
         ########## 文件与shell ##############
 
         cli upgrade   更新 cli 程序
@@ -768,7 +774,7 @@ class Cli:
         ip= params.get('i','')
         if ip=='':
             return 'invalid ip'
-        if sudo and not ip in str(row['sudo_ips']).split(','):
+        if (sudo and not ip in str(row['sudo_ips']).split(',')) and str(row['sudo_ips']).strip()!='*':
             return 'ip not permit'
         return self._inner_cmd(req,resp)
 
