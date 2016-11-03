@@ -299,8 +299,9 @@ class Cli:
         h='''
         ########## 远程执行 #################
 
-        cli api -u user -c command -i ip -t timeout(second) --sudo 1 --token token
-        exmaple:
+        cli api -u user -c command -i ip -t timeout(second) --sudo 1 --token token \\
+        --url_success http://yourservice.com/success --url_error http://yourservice.com/error
+        例子:
         cli api -u test -c 'ps aux|grep java' -i 10.3.155.90 -t 30 --sudo 1 --token 0CF1F1AD-5784-4BCA-BCD1-F8F2CCB34719
 
         ########## 文件与shell ##############
@@ -2039,7 +2040,7 @@ class Cli:
         return uuid
 
     def _cron(self,uuid,action='get',param=''):
-        return self._cmd(uuid, "cli request --url '%s'" % ('http://127.0.0.1:4444/%s'% action) )
+        return self._cmd(uuid, "cli request --url '%s'" % ('http://127.0.0.1:4444/%s'% action) ,sudo=True)
 
     def log(self,req,resp):
         print(req.params)
