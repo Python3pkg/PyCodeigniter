@@ -49,7 +49,8 @@ class Task(object):
                                         result,
                                         ctime,
                                         op_user,
-                                        uuid
+                                        uuid,
+                                        sys_user
                                         )
                                         VALUES
                                         (
@@ -58,7 +59,8 @@ class Task(object):
                                         '{result}',
                                         '{ctime}',
                                         '{op_user}',
-                                        '{uuid}'
+                                        '{uuid}',
+                                       '{sys_user}'
                                         )
 
                              '''

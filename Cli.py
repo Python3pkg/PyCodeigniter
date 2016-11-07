@@ -998,13 +998,15 @@ class Cli:
             async= params['async']
         if 'sudo' in params:
             sudo=True if params['sudo']=='1' or params['sudo']=='true' else False
+
         lg={'op_user':op_user,'from_ip':client_ip,'to_ip':ip,'user':user,'cmd':cmd}
         ci.logger.info(json.dumps(lg))
         result={}
         failsip=[]
         url_success=params.get('url_success','')
         url_error=params.get('url_error','')
-        kw={'url_success':url_success,'url_error':url_error}
+        sys_user=params.get('sys_user','')
+        kw={'url_success':url_success,'url_error':url_error,'sys_user':sys_user}
 
         def task(q):
             while True:
