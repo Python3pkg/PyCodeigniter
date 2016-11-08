@@ -577,6 +577,7 @@ class Cli:
         return 'ok'
 
     def result2db(self,req,resp):
+        return '(error)please run task'
         return self._result2db()
 
 
