@@ -77,7 +77,7 @@ class Task(object):
                                 '''
                             for row in rows:
                                 if 'user' in row:
-                                    data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid'],'result':''}
+                                    data={'op_user':row['user'],'ctime':row['ctime'],'cmd':row['cmd'],'task_id':row['task_id'],'uuid':row['uuid'],'result':'','sys_user':row.get('sys_user','')}
                                     insert_data.append(data)
                                 else:
                                     data={'task_id':row['task_id'],'result':row['result'],'utime':row['utime']}
@@ -101,7 +101,8 @@ class Task(object):
                 except Exception as er:
                     ci.logger.error(rows)
                     ci.logger.error(er)
-        threading.Thread(target=_tmp).start()
+        # threading.Thread(target=_tmp).start()
+        _tmp()
         return 'ok'
 
 if __name__ == '__main__':
