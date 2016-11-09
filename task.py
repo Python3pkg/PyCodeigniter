@@ -12,6 +12,7 @@ class Task(object):
         self.RESULT_LIST_KEY='results'
         self.has_result2db=False
         self._cmdb=None
+        self.server=''
         pass
     def _init_cmdb(self):
         if self._cmdb==None:
@@ -105,7 +106,33 @@ class Task(object):
         _tmp()
         return 'ok'
 
+    def repair(self):
+        while True:
+            try:
+                ci.request( self.server+'/cli/repair')
+                time.sleep(60*3)
+            except Exception as er:
+                ci.logger.error(er)
+                time.sleep(60*3)
+
+    def hb2db(self):
+        while True:
+            try:
+                ret=ci.request( self.server+'/cli/hb2db')
+                time.sleep(60)
+            except Exception as er:
+                ci.logger.error(er)
+                time.sleep(60)
+
+
 if __name__ == '__main__':
     CI_Application(r'./')
     task=Task()
+    host=ci.config.get('server').get('host')
+    if host=='0.0.0.0':
+        host='127.0.0.1'
+    task.server= 'http://%s:' %( host) + str(ci.config.get('server').get('port'))
+    threading.Thread(target=task.repair).start()
+    threading.Thread(target=task.hb2db).start()
     task._result2db()
+
