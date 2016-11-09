@@ -84,6 +84,9 @@ white_ips=['127.0.0.1']
 web_white_ips=['127.0.0.1']
 web_key='5c37e294d9d228035ccd85f0a0e56ebf'
 etcd={'server':['http://127.0.0.1:4001/v2/keys'],'prefix':'/keeper'}
+
+domain='zchannel.web.com'
+
 influxdb={
     'host':'127.0.0.1',
     'port':8086,
@@ -116,4 +119,5 @@ config={
     'etcd':etcd,
     'cmdb':cmdb,
     'influxdb':influxdb,
+    'domain':domain
 }

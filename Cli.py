@@ -692,7 +692,8 @@ class Cli:
         password=ci.config.get('repair')['password']
         user=ci.config.get('repair')['user']
         port=ci.config.get('repair')['port']
-        cmd='sudo wget http://10.3.155.104:8005/cli/upgrade -O /bin/cli && sudo  chmod +x  /bin/cli && sudo  /bin/cli daemon -s restart'
+        domain=ci.config.get('domain','127.0.0.1')
+        cmd='sudo wget http://%s/cli/upgrade -O /bin/cli && sudo  chmod +x  /bin/cli && sudo  /bin/cli daemon -s restart' % (domain)
         return self._remote_exec(ip,cmd,user=user,password=password,port=port,key_file=key_filename)
 
 
