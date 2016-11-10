@@ -953,12 +953,12 @@ class Cli:
         if ci.md5(key+str(timestamp))!=md5:
             return '(error) sign error!'
         cmd=params.get('c','')
-        # blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
-        blackList = [ "`",">"]
+        blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
+        # blackList = [ "`",">"]
         if cmd!='':
             for a in blackList:
                 if a in cmd:
-                    return "Command contains illegal characters"
+                    return "-c(command) contains illegal characters"
         return self._inner_cmd(req,resp,True)
 
     @auth
