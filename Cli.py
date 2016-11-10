@@ -782,7 +782,7 @@ class Cli:
         if (sudo and not ip in str(row['sudo_ips']).split(',')) and str(row['sudo_ips']).strip()!='*':
             return 'ip not permit'
         self._cmdb.query("update ops_auth set hit=hit+1,last_update='{last_update}' where token='{token}' limit 1",{'token':token,'last_update':int(time.time())})
-        if str(row['sudo'])=='0' and sudo:
+        if str(row['sudo'])!='1' and sudo:
             return 'sudo not permit'
         cmd=params.get('c','')
         p= {'cmd':cmd,'sudo':sudo}
