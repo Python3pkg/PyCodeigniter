@@ -954,6 +954,7 @@ class Cli:
             return '(error) sign error!'
         cmd=params.get('c','')
         blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
+        blackList = ["'", '"', "\\", "`", ";", "$", ">", "<"]
         # blackList = [ "`",">"]
         if cmd!='':
             for a in blackList:
