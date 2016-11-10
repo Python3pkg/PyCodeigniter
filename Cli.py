@@ -766,8 +766,10 @@ class Cli:
         if token=='':
             return 'token is required'
         row=self._cmdb.scalar("select * from ops_auth where token='{token}' limit 1",{'token':token})
-        if len(row)==0:
+        if row==None or len(row)==0:
             return 'token not exist'
+        else:
+            req.params['sudo']=str(row['sudo'])
         if token!=row['token']:
             return 'invalid token'
         if not client_ip  in str(row['ip']).split(','):
@@ -779,6 +781,12 @@ class Cli:
             return 'invalid ip'
         if (sudo and not ip in str(row['sudo_ips']).split(',')) and str(row['sudo_ips']).strip()!='*':
             return 'ip not permit'
+        self._cmdb.query("update ops_auth set hit=hit+1,last_update='{last_update}' where token='{token}' limit 1",{'token':token,'last_update':int(time.time())})
+        if str(row['sudo'])=='0' and sudo:
+            return 'sudo not permit'
+        cmd=params.get('c','')
+        p= {'cmd':cmd,'sudo':sudo}
+        self._cmdb.insert('sys_log',{ 'url':'cli/api','params':json.dumps(p),'admin_id':user,'time':int(time.time()),'ip':client_ip,'error_message':'API执行'})
         return self._inner_cmd(req,resp)
 
 
@@ -964,11 +972,13 @@ class Cli:
 
     @auth
     def cmd(self,req,resp):
+
         client_ip=self._client_ip(req)
+        params=self._params(req.params['param'])
+        ci.logger.info('remote cmd ip:%s,params:%s'%(client_ip,json.dumps(params)))
         op_user=ci.redis.get('login_'+req.env['HTTP_AUTH_UUID'])
         if not self._is_while_ip(client_ip):
             return '(error) ip is not in white list.'
-        params=self._params(req.params['param'])
 
         return self._inner_cmd(req,resp)
 
