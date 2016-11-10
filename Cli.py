@@ -928,13 +928,17 @@ class Cli:
 
 
     def _valid_cmd(self,cmd=''):
-        keys=['shutdown','reboot','halt','poweroff','int','rm']
+        keys=['shutdown','reboot','halt','poweroff','int','rm','kill']
         cmds=cmd.split('|')
         for c in cmds:
             cc=c.strip().split(" ")
             if len(cc)>0:
                 if cc[0] in keys:
                     return False
+                if cc[0]=='xargs':
+                    for i in cc:
+                        if i in keys:
+                            return False
         return True
 
 
@@ -948,6 +952,13 @@ class Cli:
         key=ci.config.get('web_key')
         if ci.md5(key+str(timestamp))!=md5:
             return '(error) sign error!'
+        cmd=params.get('c','')
+        # blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
+        blackList = [ "`",">"]
+        if cmd!='':
+            for a in blackList:
+                if a in cmd:
+                    return "禁止使用非法字符！"
         return self._inner_cmd(req,resp,True)
 
     @auth
