@@ -356,18 +356,31 @@ class ZbxCommand(object):
         thread.start()
         thread.join(timeout)
 
+        def get_result():
+            result=''
+            try:
+                result= open(tempfile.gettempdir()+ os.path.sep+self.uuid,'r').read()
+            except Exception as er:
+                pass
+            finally:
+                try:
+                    os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
+                except Exception as er:
+                    pass
+            return result.strip()
         if thread.is_alive():
             logger.warn(self.cmd)
             self.process.terminate()
             thread.join()
             feedback(url_error,'timeout',task_id)
+            result= get_result()
+            if result!='':
+                return result
             #util.url_fetch(server_url+'/slowlog',{'param':{ 'cmd':self.cmd,'ip':util.get_one_ip()}})
             return "13800138000"
-        result= open(tempfile.gettempdir()+ os.path.sep+self.uuid,'r').read()
-        try:
-            os.unlink(tempfile.gettempdir()+ os.path.sep+self.uuid)
-        except Exception as er:
-            pass
+        result= get_result()
+        if result=='':
+            result='finish'
         if  self.return_code==0 and url_success!='':
             feedback(url_success,result,task_id)
         if self.return_code!=0 and url_error!='':
