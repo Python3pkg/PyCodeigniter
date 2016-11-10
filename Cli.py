@@ -958,7 +958,7 @@ class Cli:
         if cmd!='':
             for a in blackList:
                 if a in cmd:
-                    return "禁止使用非法字符！"
+                    return "Command contains illegal characters"
         return self._inner_cmd(req,resp,True)
 
     @auth
