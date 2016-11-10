@@ -825,7 +825,12 @@ class Cli:
                     return '(error) user root not permit'
                 cmd="su '%s' -c \"%s\"" %(user, cmd.encode('utf-8').replace('"','\\"'))
             cmd=cmd.decode('utf-8')
-            data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(timeout),'user':user}
+            _timeout= timeout
+            if _timeout>=10:
+                _timeout=_timeout-2
+            elif _timeout>=3:
+                _timeout=_timeout-1
+            data_raw={'cmd':cmd.encode('utf-8'),'md5': ci.md5(cmd.encode('utf-8') +str(salt)),'timeout':str(_timeout),'user':user}
             data_raw.update(kw)
             cmd_uuid=ci.md5( ci.uuid()+ ci.uuid())
             ci.redis.setex('%s%s'%(self.COMMNAD_PREFIX,cmd_uuid),60*30,json.dumps(data_raw))
