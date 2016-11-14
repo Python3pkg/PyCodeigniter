@@ -627,14 +627,16 @@ class ZbxCommon(object):
             name,xx,ips=socket.gethostbyname_ex(socket.gethostname())
             return ips
         else:
-            cmdline = "ip a | egrep \"^\s*inet.*\" | grep -v inet6 | awk '{print $2}' | awk -v FS='/' '{print $1}'"
+            # cmdline = "ip a | egrep \"^\s*inet.*\" | grep -v inet6 | awk '{print $2}' | awk -v FS='/' '{print $1}'"
+            cmdline = "ip a"
             ret = self.execute(cmdline)
-            lip=re.split(r'\n',ret)
-            ips=[]
-            for ip in lip:
-                if str(ip).strip ()!='':
-                  ips.append(ip.strip())
-            return ips
+            return re.findall(r'inet\s*(\d+\.\d+\.\d+\.\d+)',ret)
+            # lip=re.split(r'\n',ret)
+            # ips=[]
+            # for ip in lip:
+            #     if str(ip).strip ()!='':
+            #       ips.append(ip.strip())
+            # return ips
 
 
     def get_uuid(self):
