@@ -124,6 +124,20 @@ class Task(object):
                 ci.logger.error(er)
                 time.sleep(60)
 
+    def hbstatus(self):
+        while True:
+            try:
+                self._init_cmdb()
+                self._cmdb.query("UPDATE ops_heartbeat SET utime=NOW() WHERE ISNULL(utime) OR utime=''")
+                time.sleep(1)
+                self._cmdb.query("UPDATE ops_heartbeat SET `status`='offline' WHERE (UNIX_TIMESTAMP(NOW())-60*10) >  UNIX_TIMESTAMP(utime)")
+                time.sleep(60)
+            except Exception as er:
+                ci.logger.error(er)
+                time.sleep(60)
+
+
+
 
 if __name__ == '__main__':
     CI_Application(r'./')
@@ -134,5 +148,6 @@ if __name__ == '__main__':
     task.server= 'http://%s:' %( host) + str(ci.config.get('server').get('port'))
     threading.Thread(target=task.repair).start()
     threading.Thread(target=task.hb2db).start()
+    threading.Thread(target=task.hbstatus).start()
     task._result2db()
 
