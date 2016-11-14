@@ -699,7 +699,7 @@ class Cli:
 
     def repair(self,req,resp):
         port=ci.config.get('repair')['port']
-        params=self._params(req.params['param'])
+        params=self._params(req.params.get('param','{}'))
         if 'ip' in params:
             ip=params['ip']
             return self._repair(ip)
