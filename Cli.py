@@ -252,6 +252,7 @@ echo '{"cpu":'$cpu,'"disk":'$disk,'"mem":'$mem,'"net":'$net,'"iowait":'$iowait,'
             return open(file_name,'r').read()
         return shell
 
+
 class Cli:
 
     def __init__(self):
@@ -678,6 +679,24 @@ class Cli:
     @auth
     def online(self,req,resp):
         return self.hb.online()
+
+    def get_ip_by_status(self,req,resp):
+        params=self._params(req.params.get('param','{}'))
+        status='offline'
+        if 's' in params:
+            if params['s'] in ['offline','online']:
+                status=params['s']
+            else:
+                return '-s(status) must be in "offline" or "online"'
+        if status=='offline':
+            rows= self.hb.offline()
+        if status=='online':
+            rows= self.hb.online()
+        result=[]
+        for row in rows:
+            result.append(row['ip'])
+        return ",".join(result)
+
 
     def dump_heartbeat(self,req,resp):
         self.hb.dump_data()
@@ -1159,7 +1178,10 @@ class Cli:
         return self._cmdb_api(select.encode('utf-8'),where.encode('utf-8'))
 
     def load_cmdb(self,req,resp):
-        with open('cmdb.json') as file:
+        fp='cmdb.json'
+        if not os.path.exists(fp):
+            fp='scripts/cmdb.json'
+        with open(fp) as file:
             js=file.read()
             ci.redis.set('cmdb',json.dumps(json.loads(js)))
             return 'ok'

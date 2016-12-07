@@ -109,8 +109,8 @@ class Task(object):
     def repair(self):
         while True:
             try:
-                ci.request( self.server+'/cli/repair')
-                time.sleep(60*3)
+                #ci.request( self.server+'/cli/repair')
+                time.sleep(60*60)
             except Exception as er:
                 ci.logger.error(er)
                 time.sleep(60*3)
