@@ -393,11 +393,11 @@ class Cli:
         if not 'uuid' in params.keys() or len(params['uuid'])!=36:
             return '(error) invalid uuid'
         if not 'ips' in params.keys():
-            return '(error) invalid ips'
+           return '(error) invalid ips'
         ips=params['ips'].split(',')
         if not client_ip in ips:
-            ci.logger.info(client_ip+' attack server ')
-            return '(error) invalid client_ip'
+            ci.logger.info(client_ip+' attack server ' + ','.join(ips) )
+            # return '(error) invalid client_ip'
         if not 'hostname' in params.keys():
             params['hostname']='unknown'
         params['ip']=client_ip
@@ -798,8 +798,12 @@ class Cli:
         ip= params.get('i','')
         if ip=='':
             return 'invalid ip'
-        if (sudo and not ip in str(row['sudo_ips']).split(',')) and str(row['sudo_ips']).strip()!='*':
-            return 'ip not permit'
+        ips=set(ip.split(','))
+        sudo_ips=set(str(row['sudo_ips']).split(','))
+        validips=sudo_ips & ips
+        unvalid_ips=ips-validips
+        if (sudo and len(unvalid_ips)>0) and str(row['sudo_ips']).strip()!='*':
+            return  '(error)ip not permit:'+ ','.join(unvalid_ips)
         self._cmdb.query("update ops_auth set hit=hit+1,last_update='{last_update}' where token='{token}' limit 1",{'token':token,'last_update':int(time.time())})
         if str(row['sudo'])!='1' and sudo:
             return 'sudo not permit'
@@ -976,13 +980,16 @@ class Cli:
 
     def web_cmd(self,req,resp):
         client_ip=self._client_ip(req)
-        if not self._is_web_while_ip(client_ip):
-            return '(error) ip is not in white list.'
-        params=self._params(req.params['param'])
+
+        #if not self._is_web_while_ip(client_ip):
+        #    return '(error) ip is not in white list.'
+        params=self._params(req.params.get('param','{}'))
+        ci.logger.info('web_cmd client ip:'+ str(client_ip)+' param:'+ str(params))
         md5=params['md5']
         timestamp=params['ts']
         key=ci.config.get('web_key')
         if ci.md5(key+str(timestamp))!=md5:
+            ci.logger.info('web_cmd attack'+ str(params))
             return '(error) sign error!'
         cmd=params.get('c','')
         blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
