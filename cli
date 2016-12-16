@@ -1085,7 +1085,7 @@ class ZbxDaemon(Daemon):
         except Exception as er:
             print(er)
             time.sleep(3)
-            logger.error('heartbeat2server'+str(er))
+            logger.error('heartbeat2server'+str(er)+str(ret))
 
     def heartbeat(self):
         try:
