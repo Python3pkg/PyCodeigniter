@@ -1112,6 +1112,8 @@ class Cli:
                 for _id in hbmap:
                     ip2uuid[_id]=hbmap[_id]
                     uuid2ip[hbmap[_id]]=_id
+                else:
+                    failsip.append(_id)# no found
 
 
             for i in ips:
