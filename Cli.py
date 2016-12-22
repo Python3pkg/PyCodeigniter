@@ -1918,6 +1918,34 @@ class Cli:
 
 
 # ################################################ objs ###############################################
+
+    def _addobjs_items(self,obj_type, key,data):
+        try:
+            ci.db.query("delete from objs_items where `_key`='{key}' and otype='{type}'",{'type':obj_type,'key':key})
+            insert_sql='''
+            INSERT INTO objs_items
+                (
+                otype,
+                _key,
+                `key`,
+                `value`
+                )
+                VALUES
+                (
+                '{otype}',
+                '{_key}',
+                '{key}',
+                '{value}'
+                )
+            '''
+            insertdata=[]
+            for k,v in data.items():
+                if not k in ['_key','_otype']:
+                    insertdata.append({'otype':obj_type,'_key':key,'key':k,'value':v})
+            ci.db.batch(insert_sql,insertdata)
+        except Exception as er:
+            print(er)
+            pass
     def addobjs(self,req,resp):
             params=self._params(req.params['param'])
             tag=''
@@ -1941,7 +1969,7 @@ class Cli:
             if 'k' in params:
                 key=params['k']
             else:
-                key=ip
+                return '-k(unique key ) require'
             body={}
             for t in tag.split(';'):
                 kv=t.split('=')
@@ -1956,12 +1984,14 @@ class Cli:
                 body['_key']=key
                 body['_otype']=otype
                 data={'ip':ip,'body':json.dumps(body),'otype':otype,'key':key}
+                #self._addobjs_items(otype,key,body)
                 ci.db.query("insert into objs(ip,body,otype,`key`) values('{ip}','{body}','{otype}','{key}')",data)
             else:
                 old=json.loads(row['body'])
                 for k in body.keys():
                     old[k]=body[k]
                 data={'ip':ip,'body':json.dumps(old),'id':row['id']}
+                #self._addobjs_items(otype,key,old)
                 ci.db.query("update objs set ip='{ip}',body='{body}' where id='{id}'",data)
             return 'success'
 
@@ -1984,6 +2014,50 @@ class Cli:
         rows=map(lambda row:json.loads(row['body']),rows)
         # print(rows)
         return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
+
+    def _getobjs(self,req,resp):
+        params=self._params(req.params['param'])
+        otype=''
+        tag=''
+        cols='*'
+        if 't' not in params:
+            return '-t(tag) require'
+        else:
+            tag= params['t']
+        if 'o' not in params:
+            return '-o(object type) require'
+        else:
+            otype=params['o']
+        if 'c'  in params:
+            cols= params['c']
+
+
+        def _replace(s):
+             s=s.group().strip()
+             ops=['<>','=','>','<',' like ']
+             for o in ops:
+                 if s.find(o)>0:
+                     items=s.split(o)
+                     return "(`otype`='%s' and `key`='%s' and `value`%s '%s')"%( otype, items[0],o,items[1])
+        try:
+            where=re.sub(r'\w+[=\<\>]+\w+|\w+\s+like\s+\w+',_replace,  tag.replace('and','or'))
+            rows=ci.db.query("select * from objs_items where %s" % where)
+        except Exception as er:
+            print(er)
+            pass
+        data={}
+        for row in rows:
+            key=row['_key']+row['otype']
+            if not key in data:
+                data[key]={}
+            data[key][row['key']]=row['value']
+        ret=[]
+        for k,v in data.items():
+            ret.append(v)
+        return ret
+
+
+
 
 # ################################################ cron ###############################################
 
