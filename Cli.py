@@ -265,6 +265,7 @@ class Cli:
         self.HEARTBEAT_UUID_MAP_IP_KEY='heartbeat_uuid_ip'
         self.HEARTBEAT_IP_MAP_UUID_KEY='heartbeat_ip_uuid'
         self.COMMNAD_PREFIX='cmd_'
+        self.MYSQL_VERSION=''
         self._cmdb=None
         self.hb=HeartBeat()
         self.has_hd2db=False
@@ -279,8 +280,7 @@ class Cli:
         key_file=cert.get('key_file','/etc/cli/etcd-worker-key.pem')
         cert_file=cert.get('cert_file','/etc/cli/etcd-worker.pem')
         self.opener.cert=( cert_file,key_file )
-        #ret=requests.post(url,data,timeout=10,verify=False,cert=( cert_file,key_file )).json()
-        #pass
+
 
 
 
@@ -1977,7 +1977,10 @@ class Cli:
                     ok,messege=self._check_body_val(otype,kv[0],kv[1])
                     if not ok:
                         return messege.encode('utf-8')
-                    body[kv[0]]=kv[1]
+                    if re.match(r'^\[|\]$', str(kv[1])):
+                        body[kv[0]]=re.sub(r'^\[|\]$','',str(kv[1])).split(',')
+                    else:
+                        body[kv[0]]=kv[1]
 
             row=ci.db.scalar("select id,body from objs where `key`='{key}' and otype='{otype}' limit 1 offset 0",{'key':key,'otype':otype})
             if row==None:
@@ -2010,10 +2013,44 @@ class Cli:
             otype=params['o']
         if 'c'  in params:
             cols= params['c']
-        rows=ci.db.query("select * from objs where otype='{otype}'",{'otype':otype})
+        rows=[]
+        inject_keyword=['insert ','update ','delete ',"'",';']
+        tag=tag.lower()
+        for ijk in inject_keyword:
+            if tag.find(ijk)!=-1:
+                return '-t(tag) contains illegal characters'
+        if self.MYSQL_VERSION=='':
+            self.MYSQL_VERSION=self.db.scalar('select version() as version ')['version']
+        if self.MYSQL_VERSION.startswith('5.7') or self.MYSQL_VERSION>'5.7':
+            def _replace(s):
+                s = s.group().strip()
+                ops = ['<>', '=', '>', '<', ' like ', ' in ']
+                for o in ops:
+                    if s.find(o) > 0:
+                        items = s.split(o)
+                        if o == ' like ':
+                            return "json_extract(body,'$.%s') %s '\"%s\"'" % ( items[0], o, items[1].strip())
+                        elif o == ' in ':
+                            return "json_contains(body,'[\"%s\"]','$.%s')" % ( items[1].strip(), items[0])
+                        else:
+                            return "json_extract(body,'$.%s') %s '%s'" % ( items[0], o, items[1].strip())
+
+            try:
+                where=re.sub(r'\w+[=\<\>]+\s*[\w\.]+|\w+\s+like\s+[\w\.]+|\w+\s+in\s+[\w\.]+',_replace,  tag)
+                rows=ci.db.query("select * from objs where otype='%s' and  %s" % (otype, where))
+            except Exception as er:
+                ci.logger.error(str(er)+ tag)
+                print(er)
+        else:
+            try:
+                rows=ci.db.query("select * from objs where otype='{otype}'",{'otype':otype})
+            except Exception as er:
+                ci.logger.error(str(er)+ tag)
         rows=map(lambda row:json.loads(row['body']),rows)
-        # print(rows)
-        return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
+        if self.MYSQL_VERSION.startswith('5.7') or self.MYSQL_VERSION>'5.7':
+            return ci.loader.helper('DictUtil').query(rows,select=cols)
+        else:
+            return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
 
     def _getobjs(self,req,resp):
         params=self._params(req.params['param'])
@@ -2039,8 +2076,9 @@ class Cli:
                  if s.find(o)>0:
                      items=s.split(o)
                      return "(`otype`='%s' and `key`='%s' and `value`%s '%s')"%( otype, items[0],o,items[1])
+
         try:
-            where=re.sub(r'\w+[=\<\>]+\w+|\w+\s+like\s+\w+',_replace,  tag.replace('and','or'))
+            where=re.sub(r'\w+[=\<\>]+\w+|\w+\s+like\s+\w+',_replace,  tag)
             rows=ci.db.query("select * from objs_items where %s" % where)
         except Exception as er:
             print(er)
