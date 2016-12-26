@@ -1969,7 +1969,7 @@ class Cli:
             if 'k' in params:
                 key=params['k']
             else:
-                return '-k(unique key ) require'
+                key=ci.uuid()
             body={}
             for t in tag.split(';'):
                 kv=t.split('=')
@@ -1977,10 +1977,10 @@ class Cli:
                     ok,messege=self._check_body_val(otype,kv[0],kv[1])
                     if not ok:
                         return messege.encode('utf-8')
-                    if re.match(r'^\[|\]$', str(kv[1])):
-                        body[kv[0]]=re.sub(r'^\[|\]$','',str(kv[1])).split(',')
+                    if re.match(r'^\[|\]$', str(kv[1].encode('utf-8','ignore'))):
+                        body[kv[0]]=re.sub(r'^\[|\]$','',str(kv[1].encode('utf-8','ignore'))).split(',')
                     else:
-                        body[kv[0]]=kv[1]
+                        body[kv[0]]=kv[1].encode('utf-8','ignore')
 
             row=ci.db.scalar("select id,body from objs where `key`='{key}' and otype='{otype}' limit 1 offset 0",{'key':key,'otype':otype})
             if row==None:
@@ -2014,7 +2014,7 @@ class Cli:
         if 'c'  in params:
             cols= params['c']
         rows=[]
-        inject_keyword=['insert ','update ','delete ',"'",';']
+        inject_keyword=['insert ','update ','delete ',';']
         tag=tag.lower()
         for ijk in inject_keyword:
             if tag.find(ijk)!=-1:
@@ -2028,16 +2028,22 @@ class Cli:
                 for o in ops:
                     if s.find(o) > 0:
                         items = s.split(o)
+                        items[1]=items[1].replace('"','').replace("'",'')
                         if o == ' like ':
-                            return "json_extract(body,'$.%s') %s '\"%s\"'" % ( items[0], o, items[1].strip())
+                            return "json_extract(body,'$.%s') %s '%%%s%%'" % ( items[0], o, items[1].strip())
                         elif o == ' in ':
                             return "json_contains(body,'[\"%s\"]','$.%s')" % ( items[1].strip(), items[0])
                         else:
                             return "json_extract(body,'$.%s') %s '%s'" % ( items[0], o, items[1].strip())
-
             try:
-                where=re.sub(r'\w+[=\<\>]+\s*[\w\.]+|\w+\s+like\s+[\w\.]+|\w+\s+in\s+[\w\.]+',_replace,  tag)
-                rows=ci.db.query("select * from objs where otype='%s' and  %s" % (otype, where))
+                ll=[]
+                ll.append(u'\w+\s*[=\<\>]+\s*[\w\.\-\u4e00-\u9fa5]+')
+                ll.append(u'\w+\s+like\s+[\w\.\-\u4e00-\u9fa5]+')
+                ll.append(u'\w+\s+in\s+[\w\.\-\u4e00-\u9fa5]+')
+                ll.append(u'\w+\s*[=\<\>]+\s*[\'"][\w\.\-\s\u4e00-\u9fa5]+[\'"]')
+                where=re.sub('|'.join(ll),_replace,  tag)
+                print(where)
+                rows=ci.db.query("select * from objs where otype='{otype}' and  {where}" % (otype, where))
             except Exception as er:
                 ci.logger.error(str(er)+ tag)
                 print(er)
@@ -2051,6 +2057,19 @@ class Cli:
             return ci.loader.helper('DictUtil').query(rows,select=cols)
         else:
             return ci.loader.helper('DictUtil').query(rows,select=cols,where=tag)
+    def delobjs(self,req,resp):
+        params=self._params(req.params['param'])
+        otype=''
+        if 'o' not in params:
+            return '-o(object type) require'
+        else:
+            otype=params['o']
+        if 'k' in params:
+            key=params['k']
+        else:
+            return '-k(unique key) require'
+        ci.db.query("delete from objs  where `key`='{key}' and otype='{otype}'",{'key':key,'otype':otype})
+        return ''
 
     def _getobjs(self,req,resp):
         params=self._params(req.params['param'])
