@@ -934,6 +934,42 @@ server_url=http://127.0.0.1:8005
         data= self.util.getopt(sys.argv[1:])
         if 's' in data:
             print(eval(data['s']))
+    def json_val(self,argv):
+        argv= self.util.getopt(sys.argv[1:])
+        data=None
+        sep=' '
+        quote=0
+        if 'q' in argv:
+            quote=1
+        if 's' in argv:
+            sep=argv['s']
+        if 'k' in argv:
+            key=argv['k']
+        if 'd' in argv:
+            data= json.loads(argv['d'])
+        try:
+            infile=sys.stdin
+            with infile:
+                if data==None:
+                    data= json.loads(infile.read())
+        except Exception as er:
+            data={}
+            pass
+        ret=[]
+        if isinstance(data,list):
+            for row in data:
+                if key in row:
+                    if quote==1:
+                        ret.append('"%s"' % str(row[key]).replace('"','\"').strip())
+                    else:
+                        ret.append('%s' % str(row[key]).replace('"','\"').strip())
+        if isinstance(data,dict):
+            if key in data:
+                if quote==1:
+                    ret.append('"%s"' % str(data[key]).replace('"','\"').strip())
+                else:
+                    ret.append('%s' % str(data[key]).replace('"','\"').strip())
+        print(sep.join(set(ret)))
 
     def remote_server(self,module,action,argv):
         if isinstance(argv,dict):

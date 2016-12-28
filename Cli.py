@@ -994,6 +994,7 @@ class Cli:
         cmd=params.get('c','')
         blackList = ["'", '"', "\\", "`", ";", "$", "&", ">", "<"]
         blackList = ["\\", "`", ";", "$", ">", "<"]
+        blackList = ["`",">", "<"]
         # blackList = [ "`",">"]
         if cmd!='':
             for a in blackList:
