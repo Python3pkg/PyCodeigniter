@@ -88,8 +88,8 @@ def init_log():
         try:
             if len(os.popen('command -v chattr').read())>1:
                 os.popen('chattr -a %s'%(client_log_filename)).read()
-                os.chmod(client_log_filename,777)
-                os.popen('chattr +a %s'%(client_log_filename)).read()
+                os.chmod(client_log_filename,666)
+                # os.popen('chattr +a %s'%(client_log_filename)).read()
         except Exception as er:
             pass
     return logger
