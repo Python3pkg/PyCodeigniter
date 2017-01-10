@@ -362,6 +362,20 @@ class Cli:
     def listclient(self,req,resp):
         return self.hb.listclient()
 
+    def check_port(self, req,resp):
+        param=req.params.get('param','{}')
+        data=json.loads(param)
+        host=data.get('h','')
+        port=data.get('p','')
+        if host=='':
+            return '-h(host) is required'
+        if port=='':
+            return '-p(port) is required'
+        if self._check_server(host,int(port)):
+            return 'ok'
+        else:
+            return 'fail'
+
     def _check_server(self, address, port):
         import socket
         s = socket.socket()
@@ -726,17 +740,31 @@ class Cli:
         ips=set()
         for row in rows:
             ips.add(str(row['ip']))
-            # _ips=row['ip'].split(',')
-            # for i in _ips:
-            #     if i.startswith('10.'):
-            #         if self._check_server(i,port):
-            #             ips.add(i)
-            #             break
         ret=''
-        for i in ips:
-            ret+="repair ip:"+ i+"\n" +self._repair(i)
-        ci.logger.info(ret)
-        return ret+"\nfinish"
+        import gevent
+        import gevent.queue
+        tqs= gevent.queue.Queue()
+        ret=[]
+        def task(tqs):
+            while True:
+                try:
+                    if tqs.empty():
+                        break
+                    ip=tqs.get()
+                    if self._check_server(ip,port):
+                        ret.append("repair ip:"+ ip+"\n" +self._repair(ip))
+                        ci.logger.info('repair ip:%s'%ip)
+                    else:
+                        ci.logger.info("server ip:%s down"%ip)
+                        ret.append("server ip:%s down"%ip)
+                except Exception as er:
+                    ret.append("(error) repair ip:%s"%(ip))
+                    ci.logger.error(er)
+        map(lambda x:tqs.put(x),ips)
+        tlen=tqs.qsize() if  tqs.qsize()<100 else 100
+        threads = [gevent.spawn(task,tqs) for i in xrange(tlen)]
+        gevent.joinall(threads)
+        return "\n".join(ret)
 
     @auth
     def confirm_offline(self,req,resp):
