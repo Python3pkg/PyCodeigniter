@@ -763,7 +763,10 @@ class ZbxCli():
 
     def help(self,args):
         ret=self.util.url_fetch(self.entry%'help')
-        print(ret)
+        try:
+            print(ret)
+        except Exception as er:
+            pass
 
     def upgrade(self,args):
         fn=self.util.exec_filename()
