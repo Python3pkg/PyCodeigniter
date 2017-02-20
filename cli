@@ -55,6 +55,10 @@ PYTHON_PATH='/usr/bin/python'
 
 
 def init_log():
+    dirs=['/tmp/','/var/','/etc/','/bin/','/var/log/']
+    for d in dirs:
+        if not os.path.exists(d):
+            os.mkdir(d)
     user=getpass.getuser()
     client_log_filename='/var/log/cli.log'
     try:
