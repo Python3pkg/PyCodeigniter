@@ -991,8 +991,48 @@ server_url=http://127.0.0.1:8005
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)})
         return ret
 
-
-
+    def localshell(self,args):
+        argv = self.util.getopt(args)
+        result=''
+        if 'f' in argv.keys():
+            filename = argv['f']
+        else:
+            result= '(error) -f(filename) require'
+            logger.error(result)
+        if not os.path.exists(filename):
+            result= '(error) -f(filename) %s  not found' % (filename)
+            logger.error(result)
+            return result
+        src = open(filename, 'r').read()
+        lines = re.split(r'\n', src)
+        for line in lines:
+            if line.strip() != '':
+                break;
+        is_python=False
+        argstr=''
+        if line.find('python') > 0:
+            is_python = True
+        if 'a' in argv.keys():
+            argstr = argv['a']
+        shell_argv = self.util.cmdline_args(argstr)
+        timeout=60*60*24
+        if 't' in argv.keys():
+            try:
+                timeout=int(argv['t'])
+            except Exception as er:
+                pass
+        if is_python:
+            cmd = ZbxCommand('%s %s %s' % (PYTHON_PATH, filename, " ".join(shell_argv)))
+            result = cmd.run(timeout)
+        elif line.find('bash') > 0:
+            cmd = ZbxCommand('/bin/bash %s %s' % (filename, " ".join(shell_argv)))
+            result = cmd.run(timeout)
+        else:
+            os.system("chmod +x %s" % (filename))
+            cmd = ZbxCommand('%s %s' % (filename, " ".join(shell_argv)))
+            result = cmd.run(timeout)
+        print(result)
+        return result
 
     def shell(self,args):
         if len(args)<1:
@@ -1041,19 +1081,25 @@ server_url=http://127.0.0.1:8005
         if line.find('python')>0:
                 is_python=True
         argstr=''
+        timeout=60*60*24
         if 'a' in argv.keys():
             argstr=argv['a']
+        if 't' in argv.keys():
+            try:
+                timeout=int(argv['t'])
+            except Exception as er:
+                pass
         shell_argv=self.util.cmdline_args(argstr)
         if is_python:
             cmd=ZbxCommand('%s %s %s'% ( PYTHON_PATH, fn, " ".join(shell_argv)))
-            result=cmd.run(60*60*24)
+            result=cmd.run(timeout)
         elif line.find('bash')>0:
             cmd=ZbxCommand('/bin/bash %s %s'% (fn," ".join(shell_argv)))
-            result=cmd.run(60*60*24)
+            result=cmd.run(timeout)
         else:
             os.system("chmod +x %s" % (fn))
             cmd=ZbxCommand('%s %s'% (fn," ".join(shell_argv)))
-            result=cmd.run(60*60*24)
+            result=cmd.run(timeout)
         print(result)
 
 class ZbxDaemon(Daemon):
