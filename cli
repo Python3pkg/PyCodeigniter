@@ -887,7 +887,7 @@ server_url=http://127.0.0.1:8005
         ret=self.util.url_fetch(server_url+'/%s/%s'%(module,action),{'param':json.dumps(argv)},timeout=3*60)
         if ret.strip()!='':
             try:
-                ret=json.dumps(json.loads(ret),sort_keys=True,indent=2)
+                ret=json.dumps(json.loads(ret),sort_keys=True,indent=2,ensure_ascii=False)
             except Exception as er:
                 pass
         print(ret)
