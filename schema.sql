@@ -40,7 +40,7 @@ DROP TABLE IF EXISTS `objs`;
 CREATE TABLE `objs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `ip` varchar(16) DEFAULT NULL,
-  `key` varchar(32) DEFAULT NULL,
+  `key` varchar(36) DEFAULT NULL,
   `otype` varchar(32) DEFAULT NULL,
   `name` varchar(64) DEFAULT NULL,
   `body` text,

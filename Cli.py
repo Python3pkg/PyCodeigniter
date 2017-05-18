@@ -2071,8 +2071,8 @@ class Cli:
                 ll.append(u'\w+\s+in\s+[\w\.\-\u4e00-\u9fa5]+')
                 ll.append(u'\w+\s*[=\<\>]+\s*[\'"][\w\.\-\s\u4e00-\u9fa5]+[\'"]')
                 where=re.sub('|'.join(ll),_replace,  tag)
-                print(where)
-                rows=ci.db.query("select * from objs where otype='{otype}' and  {where}" % (otype, where))
+                #print(where)
+                rows=ci.db.query("select * from objs where otype='%s' and  %s" % (otype, where))
             except Exception as er:
                 ci.logger.error(str(er)+ tag)
                 print(er)
