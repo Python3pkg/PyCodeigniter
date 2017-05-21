@@ -10,12 +10,13 @@ import time
 import inspect
 import re
 import imp
+import collections
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 
 try:
-    import thread
+    import _thread
 except ImportError as e:
     import _thread as thread
 
@@ -35,12 +36,12 @@ class CI_Loader(object):
         for m in self.app_modules_list:
             self.modules[m]={}
         if PY2:
-            map(self._load_application,self.app_modules_list)
+            list(map(self._load_application,self.app_modules_list))
         if PY3:
             list(map(self._load_application,self.app_modules_list))
         try:
             if self.app.config['server']['envroment']=='development' or self.app.config['server']['envroment']=='dev':
-                thread.start_new_thread(self.check,(),)
+                _thread.start_new_thread(self.check,(),)
         except Exception as e:
             self.app.logger.error(e)
 
@@ -48,7 +49,7 @@ class CI_Loader(object):
     def check(self):
         while True:
             try:
-                for path in self.files.keys():
+                for path in list(self.files.keys()):
                     if os.stat(path).st_mtime> self.files[path]:
                         filename=os.path.basename(path)
                         category=os.path.basename(os.path.dirname(path))
@@ -94,7 +95,7 @@ class CI_Loader(object):
     def library(self,name):
         return self._load('library',name)
     def get_module_name(self,name,categroy):
-        for key in self.modules[categroy].keys():
+        for key in list(self.modules[categroy].keys()):
             if name.lower()==key.lower():
                 return key
 
@@ -158,7 +159,7 @@ class CI_Loader(object):
                 self.app.logger.warn('file %s not exist' % filename)
                 return None
 
-            if filename.endswith('.py') and filename not in self.files.keys():
+            if filename.endswith('.py') and filename not in list(self.files.keys()):
 
                 self.files[filename]=os.stat(filename).st_mtime
             filename = os.path.abspath(filename)
@@ -211,7 +212,7 @@ class CI_Loader(object):
                     if attr.startswith('_'):
                         continue
                     #
-                    if callable(getattr(mod, attr)):
+                    if isinstance(getattr(mod, attr), collections.Callable):
                         func = getattr(mod, attr)
                         if isinstance(func, type):
                             if any(['Error' in func.__name__, 'Exception' in func.__name__]):
@@ -238,10 +239,10 @@ class CI_Loader(object):
         module_path=path+os.path.sep+module_name
         autoload={}
         is_autoload=True
-        if not 'autoload' in self.app.config.keys():
+        if not 'autoload' in list(self.app.config.keys()):
             is_autoload=True
         else:
-            if module_name in self.app.config['autoload'].keys():
+            if module_name in list(self.app.config['autoload'].keys()):
                 autoload=self.app.config['autoload'][module_name]
                 if len(autoload)>0:
                     is_autoload=False
@@ -280,7 +281,7 @@ class CI_Loader(object):
         for file in files:
             file_path=path+os.path.sep+module_name+os.path.sep+ file
             if os.path.isfile(file_path) and (file.endswith('.py') or file.endswith('.pyc')) and file!='__init__.py':
-                for m in autoload.keys():
+                for m in list(autoload.keys()):
                     if m==file.split('.')[0]:
                         module=self.load_file(file_path)
                         self._register_instance(module,autoload[m],module_name)
@@ -328,7 +329,7 @@ class CI_Loader(object):
                 arginfo = ''
         else:
             arginfo = ''
-        if module_name not in self.modules[module_category_name].keys():
+        if module_name not in list(self.modules[module_category_name].keys()):
             _instance = None
             try:
 
@@ -349,7 +350,7 @@ class CI_Loader(object):
                     elif not hasattr(_instance,p):
                         setattr(_instance,p,getattr( self.app,p))
                 if _instance != None and module_category_name == 'controllers' and not hasattr(_instance, 'model') and \
-                        (module_name + 'Model' in self.modules['models'].keys() or module_name + '_model' in self.modules['models'].keys()):
+                        (module_name + 'Model' in list(self.modules['models'].keys()) or module_name + '_model' in list(self.modules['models'].keys())):
                     setattr(_instance, 'model', self.model(module_name + 'Model'))
                 self.app.logger.info('load module '+ module_name+ ' of '+ module_category_name+ " successfull. \t"+str(_instance))
 
@@ -400,6 +401,6 @@ if __name__=='__main__':
 
 
 
-    print(loader.model('SearchModel'))
+    print((loader.model('SearchModel')))
 
 

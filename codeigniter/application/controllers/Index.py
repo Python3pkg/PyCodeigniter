@@ -17,18 +17,18 @@ class Index:
 
     def test_task(self,req,resp):
         import datetime
-        print('timer:'+ str(datetime.datetime.now()))
+        print(('timer:'+ str(datetime.datetime.now())))
 
     def test_db(self,req,resp):
         row= ci.db.query('select 1')
-        print(ci.db.scalar('select 1'))
+        print((ci.db.scalar('select 1')))
         # ci.db.insert('tablenname',{'fieldname1':'value1','fieldname2':'value2'})
         # ci.db.update('tablenname',{'fieldname1':'value1','fieldname2':'value2'},{'condition':'conditionvalue'})
         # ci.db.select('*')._from('test').limit(10).get()
         return row
 
     def test_config(self,req,resp):
-        print(ci.config)
+        print((ci.config))
 
     def test_loader(self,req,resp):
         ci.loader.helper('your helper')
@@ -44,13 +44,13 @@ class Index:
 
         db2=ci.loader.cls('CI_DB')(ci.config['db2']) # how to create different db instance and save it into ci
         ci.set('db2',db2)  # save it  into ci
-        print(ci.get('db2').query('select 1'))
+        print((ci.get('db2').query('select 1')))
 
         #how to log to different file ?
 
         logger2=ci.loader.cls('CI_Logger')(ci.config['log2']) # how to create different db instance and save it into ci
         ci.set('logger2',logger2)  # save it  into ci
-        print(ci.get('logger2').info('asdfasdfas'))
+        print((ci.get('logger2').info('asdfasdfas')))
 
         #The rest may be deduced by analogy
 

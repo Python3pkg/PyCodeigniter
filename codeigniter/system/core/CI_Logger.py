@@ -18,16 +18,16 @@ class CI_Logger(object):
     def __init__(self,**kwargs):
         self.log_file_path=kwargs['file']
         self.log_level=kwargs['level']
-        if 'file_size' in kwargs.keys() :
+        if 'file_size' in list(kwargs.keys()) :
             self.file_size=kwargs['file_size']
         else:
             self.file_size=100 * 1024 * 1024
-        if 'back_count' in kwargs.keys():
+        if 'back_count' in list(kwargs.keys()):
             self.back_count=kwargs['back_count']
         else:
             self.back_count=10
 
-        if 'name' in kwargs.keys():
+        if 'name' in list(kwargs.keys()):
             self.name=kwargs['name']
         else:
             self.name='default'
@@ -45,7 +45,7 @@ class CI_Logger(object):
         self.set_handlers(self.log_file_path)
 
     def _init(self,name):
-        if not name in self.loggers.keys():
+        if not name in list(self.loggers.keys()):
             logger=logging.getLogger(name)
             self.set_handlers(self.log_file_path)
             self.loggers[name]=logger
@@ -100,8 +100,8 @@ class CI_Logger(object):
         else:
             loginfo=self._get_log_back()
             if PY2:
-                if isinstance(message,unicode):
-                    message=unicode.encode(message,'utf-8','ignore')
+                if isinstance(message,str):
+                    message=str.encode(message,'utf-8','ignore')
                 message = str( self._get_msg( loginfo)[0])+" "+str(message)
                 self.logger.log(level,message)
             if PY3:

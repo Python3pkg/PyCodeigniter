@@ -13,8 +13,8 @@ PY3 = sys.version_info[0] == 3
 sys.path.insert(0,os.path.dirname(__file__))
 
 
-from CI_DBActiveRec import CI_DBActiveRec
-from CI_Util import OrderedDict
+from .CI_DBActiveRec import CI_DBActiveRec
+from .CI_Util import OrderedDict
 
 
 import time
@@ -22,7 +22,7 @@ from threading import Lock
 import threading
 import time
 if PY2:
-    from  Queue import Queue
+    from  queue import Queue
 if PY3:
     from queue import Queue
 class Pool(object):
@@ -30,12 +30,12 @@ class Pool(object):
         # self.mutex=Lock()
         self.creator=creator
         self.idle=[]
-        if 'blocking' in kwargs.keys():
+        if 'blocking' in list(kwargs.keys()):
             self.blocking=kwargs['blocking']
             del kwargs['blocking']
         else:
             self.blocking=True
-        if 'maxconnections' in kwargs.keys():
+        if 'maxconnections' in list(kwargs.keys()):
             self.maxconnections=kwargs['maxconnections']
             del kwargs['maxconnections']
         else:
@@ -69,7 +69,7 @@ class Pool(object):
                 size=self.pool.qsize()
                 for i in range(0,size):
                     conn=self.get_connection()
-                    if hasattr(conn._con, 'ping') and callable(conn._con.ping):
+                    if hasattr(conn._con, 'ping') and isinstance(conn._con.ping, collections.Callable):
                         try:
                             conn._con.ping()
                             conn.close()
@@ -166,22 +166,22 @@ class Pool(object):
 
 class CI_DB(object):
     def __init__(self, **kwargs):
-        if 'app' in kwargs.keys():
+        if 'app' in list(kwargs.keys()):
             self.app=kwargs['app']
             self.logger=self.app.logger
             del kwargs['app']
-        if 'type' in kwargs.keys():
+        if 'type' in list(kwargs.keys()):
             del kwargs['type']
-        if 'debug' in kwargs.keys():
+        if 'debug' in list(kwargs.keys()):
             self.debug=kwargs['debug']
             del kwargs['debug']
         else:
             self.debug=False
-        if 'autocommit' in kwargs.keys():
+        if 'autocommit' in list(kwargs.keys()):
             self.autocommit=kwargs['autocommit']
         else:
             self.autocommit=True
-        if 'creator' in kwargs.keys():
+        if 'creator' in list(kwargs.keys()):
             self.creator=kwargs['creator']
             del kwargs['creator']
         else:
@@ -224,7 +224,7 @@ class CI_DB(object):
 
     def escape_str(self, string, like = False):
         if isinstance(string, dict):
-            for key,val in string.iteritems():
+            for key,val in string.items():
                 string[key] = self.escape_str(val, like)
             return string
 
@@ -292,13 +292,13 @@ class CI_DB(object):
             # row2=collections.OrderedDict()
             row2=OrderedDict()
             for i in title:
-                for k in i.keys():
+                for k in list(i.keys()):
                     row2[i[k]]=row[k]
             result.append(row2)
         return result
 
     def begin(self,conn):
-        if hasattr(conn._con,'begin') and callable(getattr(conn._con,'begin')):
+        if hasattr(conn._con,'begin') and isinstance(getattr(conn._con,'begin'), collections.Callable):
             conn._con.begin()
 
     def rollback(self,conn):
@@ -337,8 +337,8 @@ class CI_DB(object):
             # print(param)
         if self.debug:
 
-            if PY2 and isinstance(sql,unicode):
-                sql=unicode.encode(sql,'utf-8','ignore')
+            if PY2 and isinstance(sql,str):
+                sql=str.encode(sql,'utf-8','ignore')
             self.logger.info(sql)
         auto_close_connection=False
         if conn==None:
@@ -371,8 +371,8 @@ class CI_DB(object):
                     break
             # if auto_commit and  self.creator=='sqlite3':
             #     self.rollback(conn)
-            if PY2 and isinstance(sql,unicode):
-                sql=unicode.encode(sql,'utf-8','ignore')
+            if PY2 and isinstance(sql,str):
+                sql=str.encode(sql,'utf-8','ignore')
             self.app.logger.error(str(e)+"sql:\n"+sql)
             raise e
 
@@ -481,7 +481,7 @@ if __name__=='__main__':
 
 
     for row in rows:
-        print(row[1])
+        print((row[1]))
 
     print(rows)
 

@@ -2,13 +2,13 @@
 # -*- coding:utf8 -*-
 import falcon
 import json
-from codeigniter import CI_Application
+from .codeigniter import CI_Application
 ciapp=CI_Application(r'./')
 from wsgiref.simple_server import make_server
 def dispatch(req,resp):
     resp.status = falcon.HTTP_200
     resp.body=None
-    paths=filter(lambda x: x!='',req.path.split('/'))
+    paths=[x for x in req.path.split('/') if x!='']
     ctrl_name='index'
     func_name='index'
     if len(paths)>=2:
@@ -24,8 +24,8 @@ def dispatch(req,resp):
         try:
             content=getattr(ctrl,func_name)(req,resp)
             if  resp.body==None:
-                if isinstance(content,unicode):
-                    resp.body=unicode.encode(content,'utf-8','ignore')
+                if isinstance(content,str):
+                    resp.body=str.encode(content,'utf-8','ignore')
                 elif isinstance(content,str):
                     resp.body=content
                 else:

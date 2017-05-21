@@ -7,10 +7,10 @@ import sys
 import os
 import json
 import imp
-import urllib
+import urllib.request, urllib.parse, urllib.error
 sys.path.insert(0,os.path.dirname(__file__))
 try:
-    import urllib2
+    import urllib.request, urllib.error, urllib.parse
 except:
     import urllib.request as urllib2
 import hashlib
@@ -42,7 +42,7 @@ except Exception as er:
 
 
 try:
-    from cookielib import CookieJar
+    from http.cookiejar import CookieJar
 except:
     import http.cookiejar as CookieJar
 import re
@@ -63,7 +63,7 @@ class CI_CLASS(object):
 CI = CI_CLASS()
 
 
-from CI_Response import CI_Response
+from .CI_Response import CI_Response
 
 class CI_Application(object):
     application_instance=None
@@ -71,7 +71,7 @@ class CI_Application(object):
         cj = CookieJar()
     except:
         cj =CookieJar.CookieJar()
-    proxy_handler=urllib2.ProxyHandler({})
+    proxy_handler=urllib.request.ProxyHandler({})
     def __init__(self,application_path=None,system_path=None,config_file=None):
         # pdb.set_trace()
         if system_path==None:
@@ -127,7 +127,7 @@ class CI_Application(object):
         return self._is_python3
 
     def get(self,key):
-        if key in self.instances.keys():
+        if key in list(self.instances.keys()):
             return self.instances[key]
     def set(self,key,value):
         self.instances[key]=value
@@ -135,7 +135,7 @@ class CI_Application(object):
     def init(self):
         if self.config_file!=None:
             if PY2:
-                execfile(self.config_file,{},self.config)
+                exec(compile(open(self.config_file).read(), self.config_file, 'exec'),{},self.config)
             if PY3:
                 exec(open(self.config_file).read(),{}, self.config)
                 self.config=self.config.get('config')
@@ -158,9 +158,9 @@ class CI_Application(object):
         self.hook= eval('CI_Hook()')
         self.hook.call_pre_system()
 
-        if 'use_threads' in self.config.keys():
+        if 'use_threads' in list(self.config.keys()):
             self.is_threads = self.config['use_threads']
-        for conf in self.config.keys():
+        for conf in list(self.config.keys()):
             if isinstance(self.config[conf],dict):
                 self.config[conf]['app']=self
         exec('from CI_Logger import CI_Logger')
@@ -179,7 +179,7 @@ class CI_Application(object):
         self.cookie= eval('CI_Cookie(**self.config)')
         module_list.append('CI_Cookie')
 
-        if 'db' in self.config.keys():
+        if 'db' in list(self.config.keys()):
             # if 'type' in self.config['db'] and self.config['db']['type']=='sqlite' :
             #     exec('from CI_Sqlite import CI_Sqlite')
             #     exec('from CI_DBActiveRec import CI_DBActiveRec')
@@ -199,44 +199,44 @@ class CI_Application(object):
             self.logger.warn('db not config')
         self.static = None
         self.router= eval('CI_Router(**self.config)')
-        if 'mail' in self.config.keys():
+        if 'mail' in list(self.config.keys()):
             self.mail= eval('CI_Mail(**self.config["mail"])')
             module_list.append('CI_Mail')
-        if 'cache' in self.config.keys():
+        if 'cache' in list(self.config.keys()):
             self.cache= eval('CI_Cache(**self.config)')
             if 'type' in self.config['cache']:
                 cache_type=self.config['cache']['type']
-        if 'server' in self.config.keys():
+        if 'server' in list(self.config.keys()):
             if 'static_dir' in self.config['server']:
                 exec('from CI_Static import CI_Static')
                 self.static = eval('CI_Static(**self.config)')
 
 
-        if 'zookeeper' in self.config.keys():
+        if 'zookeeper' in list(self.config.keys()):
             exec('from CI_Zookeeper import CI_Zookeeper')
             self.zk= eval('CI_Zookeeper(**self.config)')
             module_list.append('CI_Zookeeper')
-        if 'session' in self.config.keys():
+        if 'session' in list(self.config.keys()):
             exec('from CI_Session import CI_Session')
             self.session= eval('CI_Session(**self.config)')
             module_list.append('CI_Session')
-        if 'template' in self.config.keys():
+        if 'template' in list(self.config.keys()):
             exec('from CI_Template import CI_Template')
             self.tpl= eval('CI_Template(**self.config)')
             module_list.append('CI_Template')
-        if 'redis' in self.config.keys():
+        if 'redis' in list(self.config.keys()):
             exec('from CI_Redis import CI_Redis')
             self.redis= eval('CI_Redis(**self.config)')
             module_list.append('CI_Redis')
             if cache_type=='redis':
                 self.cache.set_cache(self.redis)
-        if 'memcache' in self.config.keys():
+        if 'memcache' in list(self.config.keys()):
             exec('from CI_Memcache import CI_Memcache')
             self.memcache= eval('CI_Memcache(**self.config)')
             module_list.append('CI_Memcache')
             if cache_type=='memcache':
                 self.cache.set_cache(self.memcache)
-        if 'cron' in self.config.keys():
+        if 'cron' in list(self.config.keys()):
             exec('from CI_Cron import CI_Cron')
             self.cron= eval('CI_Cron(**self.config)')
             module_list.append('CI_Cron')
@@ -247,7 +247,7 @@ class CI_Application(object):
 
 
 
-        if 'cron' in self.config.keys():
+        if 'cron' in list(self.config.keys()):
             self.cron.init()
 
 
@@ -307,8 +307,8 @@ class CI_Application(object):
                         open(target_file,"wb").write(open(os.path.join(cur_path,file),"rb").read())
 
     def merge_conf(self,input_config={},default_config={}):
-        for key,value in default_config.iteritems():
-            if not key in input_config.keys():
+        for key,value in default_config.items():
+            if not key in list(input_config.keys()):
                 input_config[key]=value
         if 'app' in input_config and isinstance(input_config['app'],CI_Application):
             del input_config['app']
@@ -339,7 +339,7 @@ class CI_Application(object):
 
     def md5(self,s):
         m=hashlib.md5()
-        if PY2 and isinstance(s,unicode):
+        if PY2 and isinstance(s,str):
             s=s.encode('utf-8')
         m.update(s)
         return m.hexdigest()
@@ -366,19 +366,19 @@ class CI_Application(object):
 
     def request( self, url,data=None,headers={},proxys={},timeout=15,gzip=False):
         if len(proxys)>0:
-            proxy_handler=urllib2.ProxyHandler(proxys)
+            proxy_handler=urllib.request.ProxyHandler(proxys)
             CI_Application.proxy_handler=proxy_handler
 
-        opener = urllib2.build_opener(CI_Application.proxy_handler,urllib2.HTTPCookieProcessor(CI_Application.cj))
-        if not 'User-Agent' in headers.keys():
+        opener = urllib.request.build_opener(CI_Application.proxy_handler,urllib.request.HTTPCookieProcessor(CI_Application.cj))
+        if not 'User-Agent' in list(headers.keys()):
             headers['User-Agent']='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.104 Safari/537.36'
         if gzip:
             headers['Accept-Encoding']='gzip, deflate'
         if data!=None:
-            data = urllib.urlencode(data)
+            data = urllib.parse.urlencode(data)
         while len(opener.addheaders)>0:
             opener.addheaders.pop()
-        for k,v in headers.iteritems():
+        for k,v in headers.items():
             opener.addheaders.append((k,v))
         response = opener.open(url,data=data,timeout=timeout)
         if 'Content-Encoding' in response.headers:
@@ -477,9 +477,9 @@ class CI_Application(object):
             content = self.local.response.body
             if self.cookie:
                 self.cookie.result_cookie()
-            if PY2 and isinstance(content,unicode):
-                content=unicode.encode(content,'utf-8','ignore')
-            if PY2 and (not type(content) in [str,unicode]):
+            if PY2 and isinstance(content,str):
+                content=str.encode(content,'utf-8','ignore')
+            if PY2 and (not type(content) in [str,str]):
                 content = json.dumps(content)
             if PY3:
                 if isinstance(content,str):

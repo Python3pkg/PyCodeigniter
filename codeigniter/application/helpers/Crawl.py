@@ -4,10 +4,10 @@
 
 
 
-import urllib2
-import urllib
+import urllib.request, urllib.error, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 import re
-from  urlparse import urlparse
+from  urllib.parse import urlparse
 
 
 
@@ -34,13 +34,13 @@ class Crawl(object):
                 'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'
             }
             if data!=None:
-                data=urllib.urlencode(data)
-            req = urllib2.Request(
+                data=urllib.parse.urlencode(data)
+            req = urllib.request.Request(
                 url =url,
                 headers = headers,
                 data=data
             )
-            html=urllib2.urlopen(req,timeout=15).read()
+            html=urllib.request.urlopen(req,timeout=15).read()
             absolute_url,relative_url=self.parse_url(url)
             html=re.sub(r'src="/','src="'+absolute_url+'/',html)
             html=re.sub(r'href="/','href="'+absolute_url+'/',html)
@@ -53,7 +53,7 @@ class Crawl(object):
             if len(charset) >0:
                 if charset[0]=='gb2312':
                     charset[0]='gbk'
-                html=unicode(html,charset[0])
+                html=str(html,charset[0])
             # print(html)
         except Exception:
             pass

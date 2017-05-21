@@ -151,7 +151,7 @@ class CI_DBActiveRec():
             return
         _type = _type.upper()
         if _type not in ['MAX', 'MIN', 'AVG', 'SUM']:
-            print('Invalid function type: %s' % _type)
+            print(('Invalid function type: %s' % _type))
             return
         if alias == '':
             alias = self._create_alias_from_table(select.strip())
@@ -221,7 +221,7 @@ class CI_DBActiveRec():
     def _where(self, key, value=None, type='AND ', escape=None):
         if not isinstance(key, dict):
             key = {key: value}
-        for k, v in key.iteritems():
+        for k, v in key.items():
             prefix = '' if (len(self.ar_where) == 0 and len(self.ar_cache_where) == 0) else type
             if (v is None) and (not self._has_operator(k)):
                 k += ' IS NULL'
@@ -285,7 +285,7 @@ class CI_DBActiveRec():
     def _like(self, field, match='', _type='AND ', side='both', not_=''):
         if not isinstance(field, dict):
             field = {field: match}
-        for k, v in field.iteritems():
+        for k, v in field.items():
             k = self._protect_identifiers(k)
             prefix = "" if len(self.ar_like)==0 else _type
             # v = self.escape_like_str(v)
@@ -379,7 +379,7 @@ class CI_DBActiveRec():
     def set_(self, key, value='', escape=True):
         if not isinstance(key, dict):
             key = {key: value}
-        for k, v in key.iteritems():
+        for k, v in key.items():
             if escape is False:
                 self.ar_set[self._protect_identifiers(k)] = v
             else:
@@ -397,7 +397,7 @@ class CI_DBActiveRec():
         """
 
         if isinstance(string, dict):
-            for key,val in string.iteritems():
+            for key,val in string.items():
                 string[key] = self.escape_str(val, like)
             return string
 
@@ -476,7 +476,7 @@ class CI_DBActiveRec():
 
         if isinstance(item, dict):
             escaped_dict = dict()
-            for k, v in item.iteritems():
+            for k, v in item.items():
                 escaped_dict[self._protect_identifiers(k)] = self._protect_identifiers(v)
             return escaped_dict
 
@@ -560,7 +560,7 @@ class CI_DBActiveRec():
             self.error_msg = 'db must set table'
             return False
 
-        sql = self._insert(self._protect_identifiers(table, True, None, False), self.ar_set.keys(), self.ar_set.values())
+        sql = self._insert(self._protect_identifiers(table, True, None, False), list(self.ar_set.keys()), list(self.ar_set.values()))
 
         self._reset_write()
         return self.query(sql)
@@ -578,8 +578,8 @@ class CI_DBActiveRec():
                 VALUES (%s);
         """ % (
             self._protect_identifiers(table, True, None, False),
-            ', '.join(map(lambda x:'`'+str(x)+'`' ,_set.keys())),
-            ', '.join(map(lambda x:':'+str(x) ,_set.keys()))
+            ', '.join(['`'+str(x)+'`' for x in list(_set.keys())]),
+            ', '.join([':'+str(x) for x in list(_set.keys())])
         )
         self._reset_write()
         return self.query(sql,_set)
@@ -614,7 +614,7 @@ class CI_DBActiveRec():
             self.error_msg = 'db must set table'
             return False
 
-        sql = self._replace(self._protect_identifiers(table, True, None, False), self.ar_set.keys(), self.ar_set.values())
+        sql = self._replace(self._protect_identifiers(table, True, None, False), list(self.ar_set.keys()), list(self.ar_set.values()))
         self._reset_write()
         return self.query(sql)
 
@@ -660,8 +660,8 @@ class CI_DBActiveRec():
             sql='''
             UPDATE %s SET %s
             WHERE %s
-            '''%(self._protect_identifiers(table, True, None, False),','.join(map(lambda x:'`'+x+'`=:'+x,_set.keys())),
-                 ' and '.join(map(lambda x:'`'+x+'`=:'+x,where.keys())),)
+            '''%(self._protect_identifiers(table, True, None, False),','.join(['`'+x+'`=:'+x for x in list(_set.keys())]),
+                 ' and '.join(['`'+x+'`=:'+x for x in list(where.keys())]),)
             _set.update(where)
             self.query(sql,_set)
         else:
@@ -673,7 +673,7 @@ class CI_DBActiveRec():
 
     def _update(self, table, values, where, orderby=None, limit=False):
         valstr = []
-        for key in values.keys():
+        for key in list(values.keys()):
             value=values[key]
             valstr.append(key+' = '+value)
         limit = ' LIMIT %s' % limit if limit is not False else ''

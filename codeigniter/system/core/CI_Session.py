@@ -11,7 +11,7 @@ import sys
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 if PY2:
-    import Queue
+    import queue
 if PY3:
     import queue as Queue
 
@@ -100,7 +100,7 @@ class LocalAdaptor(object):
                     #print "\n\n[GC for local session map]:"
                     #print "\n".join(["key:%s:value:%s,ttl:%s" % (e.name,e.value,e.expire -  now + e.ctime ) for e in self.store.values()])
 
-                    for v in self.store.values():
+                    for v in list(self.store.values()):
                         if now - v.ctime > v.expire:
                             del self.store[v.name]
             except BaseException as e:

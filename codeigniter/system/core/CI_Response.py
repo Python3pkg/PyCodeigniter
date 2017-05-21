@@ -8,7 +8,7 @@ PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 if PY2:
-    import Cookie as cookies
+    import http.cookies as cookies
 if PY3:
     from http import cookies
 
@@ -70,7 +70,7 @@ class CI_Response(object):
 
     @status.setter
     def status(self,status=HTTP_CODES[200]):
-        if str(status).isdigit() and status in HTTP_CODES.keys():
+        if str(status).isdigit() and status in list(HTTP_CODES.keys()):
             self.status=HTTP_CODES[status]
         else:
             self._status=status

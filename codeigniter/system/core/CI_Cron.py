@@ -86,7 +86,7 @@ class CI_Cron(object):
             else:
                 command=self._get_func(command)
                 job=self.scheduler.add_job(command,CronTrigger(second=ts[0],minute=ts[1],hour=ts[2],day=ts[3],month=ts[4],day_of_week=ts[5]),args=args,kwargs=kwargs)
-            self.jobs.items().append({job.id:job})
+            list(self.jobs.items()).append({job.id:job})
             self.jobs_ids.append({'md5':_id,'id':job.id})
             self.app.logger.info('add job sucessfull ' + "\tjob_id:"+ job.id+ "\tcron:"+ cron + "\tcommond"+ str(command) +"\tcallback"+ str(callback) )
             return job.id

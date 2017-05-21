@@ -11,8 +11,8 @@ if PY3:
     from io import StringIO
     from http import cookies
 if PY2:
-    import StringIO
-    import Cookie as cookies
+    import io
+    import http.cookies as cookies
 
 import cgi
 SimpleCookie = cookies.SimpleCookie
@@ -22,9 +22,9 @@ if sys.version_info >= (3, 0):
     from urllib.parse import urlencode # pragma: no cover
     from urllib.parse import quote # pragma: no cover
 else:
-    from urlparse import parse_qs # pragma: no cover
-    from urllib import urlencode # pragma: no cover
-    from urllib import quote # pragma: no cover
+    from urllib.parse import parse_qs # pragma: no cover
+    from urllib.parse import urlencode # pragma: no cover
+    from urllib.parse import quote # pragma: no cover
 
 
 
@@ -47,7 +47,7 @@ class CI_Request(object):
         # self.stream = env['wsgi.input']
         self._cookies=None
 
-        for param, value in parse_qs(env["QUERY_STRING"]).items():
+        for param, value in list(parse_qs(env["QUERY_STRING"]).items()):
             self.query_params[param] = value[0]
 
         self.parse_data()
@@ -79,14 +79,14 @@ class CI_Request(object):
                     a = cgi.FieldStorage(fp=fp, environ=env, keep_blank_values=1)
                 except Exception as e:
                     data=parse_qs(fdata,keep_blank_values=1)
-                    for key in data.keys():
+                    for key in list(data.keys()):
                         self._params[ key ]=data[key][0]
                     return
         else:
             a = cgi.FieldStorage(environ=env, keep_blank_values=1)
         self._has_parse=True
         if not a.list is None :
-            for key in a.keys():
+            for key in list(a.keys()):
                 self._params[ key ] = a[key].value
         elif a.file :
             try:
@@ -117,7 +117,7 @@ class CI_Request(object):
         if self._cookies is None:
             parser = SimpleCookie(self.get_header('Cookie'))
             cookies = {}
-            for morsel in parser.values():
+            for morsel in list(parser.values()):
                 cookies[morsel.key] = morsel.value
 
             self._cookies = cookies

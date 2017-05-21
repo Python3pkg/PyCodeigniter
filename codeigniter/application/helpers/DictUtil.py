@@ -18,7 +18,7 @@ class Expr:
         self.func = self.op_map[self.op]
 
     def __parser(self, expr):
-        op = map(lambda x: [expr.find(x), x], filter(lambda x: x in expr, self.op_map.keys()))
+        op = [[expr.find(x), x] for x in [x for x in list(self.op_map.keys()) if x in expr]]
         assert len(op) >= 1
 
         op = min(op)
@@ -42,7 +42,7 @@ class Expr:
 
     def compute(self, data_dict):
         v=data_dict.get(self.key, '')
-        if isinstance(v,unicode):
+        if isinstance(v,str):
             v = v.encode('utf-8')
         if isinstance(v,list):
             if '_in' == self.func.__name__:
@@ -54,7 +54,7 @@ class Expr:
 class Matcher:
     def __init__(self, pattern_expr='',**kwargs):
         def tmp(a):
-            if isinstance(a.group(0),unicode):
+            if isinstance(a.group(0),str):
                 return ('('+(a.group(0)).encode("utf-8").replace("'",'')+')').decode('utf-8')
             else:
                 return ('('+(a.group(0)).replace("'",'')+')').decode('utf-8')
@@ -124,11 +124,11 @@ class Matcher:
         :param sql: select columnname1,columnname2,columnname3 where columnname1 like 'xx'
         :return:
         '''
-        if isinstance(select,unicode):
+        if isinstance(select,str):
             select=select.encode('utf-8')
-        cols=map(str.strip, select.split(','))
+        cols=list(map(str.strip, select.split(',')))
 
-        if isinstance(where,unicode):
+        if isinstance(where,str):
             where=where.encode('utf-8','ignore')
         match=Matcher(where)
 
@@ -136,12 +136,12 @@ class Matcher:
             rows=list_data
         elif isinstance(list_data,dict):
             rows=[list_data]
-        elif isinstance(list_data,unicode):
-            rows=json.loads(unicode.encode(list_data,'utf-8','ignore'))
-        elif isinstance(list_data,basestring):
+        elif isinstance(list_data,str):
+            rows=json.loads(str.encode(list_data,'utf-8','ignore'))
+        elif isinstance(list_data,str):
             row=json.loads(list_data)
         if where!='':
-            rows=filter(lambda row: match.calc(row), rows)
+            rows=[row for row in rows if match.calc(row)]
 
         result=[]
 
@@ -151,7 +151,7 @@ class Matcher:
             for row in rows:
                 irow={}
                 for c in cols:
-                    if c not in row.keys():
+                    if c not in list(row.keys()):
                         irow[c]=None
                     else:
                         irow[c]=row[c]
@@ -226,4 +226,4 @@ if __name__=='__main__':
     import time
     s=time.time()
     m.query(students*100000,'name,tag',where='(name=a and tag=x) or level in 1',order='name desc , tag asc')
-    print(time.time()-s)
+    print((time.time()-s))

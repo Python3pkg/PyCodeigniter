@@ -77,7 +77,7 @@ class CI_Cookie:
         self.app.local.response.cookies[key] = v
 
     def result_cookie(self):
-        [self.app.set_header("Set-Cookie","%s" % cookiedata) for cookiedata in  self.app.local.response.cookies.values() if "%s" % cookiedata != ""]
+        [self.app.set_header("Set-Cookie","%s" % cookiedata) for cookiedata in  list(self.app.local.response.cookies.values()) if "%s" % cookiedata != ""]
 
 
 

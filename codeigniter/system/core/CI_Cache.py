@@ -19,13 +19,13 @@ import inspect
 import os
 import sys
 sys.path.insert(0,os.path.dirname(__file__))
-import CI_Application
+from . import CI_Application
 # from CI_Application import CI_Application
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 try:
-    import thread
+    import _thread
 except ImportError as e:
     import _thread as thread
 
@@ -38,7 +38,7 @@ class CI_Memory_Cache(object):
         self.cache_conf=kwargs['cache']
         self.app=kwargs['app']
         try:
-            thread.start_new_thread(self.check,())
+            _thread.start_new_thread(self.check,())
         except Exception as e:
             self.app.logger.error(e)
     def set(self,key,value,ttl=3600):
@@ -47,14 +47,14 @@ class CI_Memory_Cache(object):
     def put(self,key,value,ttl=3600):
         self.cache_dict[key]={'t':int(time.time())+ttl,'v':value}
     def get(self,key):
-        if key in self.cache_dict.keys():
+        if key in list(self.cache_dict.keys()):
             obj=self.cache_dict[key]
             if int(time.time())- obj['t']>0:
                 return None
             else:
                 return obj['v']
     def delete(self,key):
-        if key in self.cache_dict.keys():
+        if key in list(self.cache_dict.keys()):
             del self.cache_dict[key]
     def check(self):
         while True:
@@ -210,7 +210,7 @@ class CI_Cache(object):
             FuncArgs=FuncArgs[1:]
         for i,v in enumerate(FuncArgs):
             d[args[i]]=v
-        for k,v in FuncKwargs.items():
+        for k,v in list(FuncKwargs.items()):
             d[k]=v
         return d
 
@@ -232,16 +232,16 @@ class CI_Cache(object):
         for m in match:
             ks=m[1:].split('.')
             if len(ks)==2:
-                if ks[0] in data.keys() and ks[1] in data[ks[0]]:
-                    if PY2 and isinstance(data[ks[0]][ks[1]],unicode):
-                        data[ks[0]][ks[1]]=unicode.encode(data[ks[0]][ks[1]],'utf-8','ignore')
+                if ks[0] in list(data.keys()) and ks[1] in data[ks[0]]:
+                    if PY2 and isinstance(data[ks[0]][ks[1]],str):
+                        data[ks[0]][ks[1]]=str.encode(data[ks[0]][ks[1]],'utf-8','ignore')
                     key+=str(data[ks[0]][ks[1]])+'$'
                 else:
                     raise Exception('cache key error: %s or %s not found'%(ks[0],ks[1]))
             elif len(ks)==1:
-                if ks[0] in data.keys():
-                    if PY2 and isinstance(data[ks[0]],unicode):
-                        data[ks[0]]=unicode.encode(data[ks[0]],'utf-8','ignore')
+                if ks[0] in list(data.keys()):
+                    if PY2 and isinstance(data[ks[0]],str):
+                        data[ks[0]]=str.encode(data[ks[0]],'utf-8','ignore')
                     key+=str(data[ks[0]])+'$'
                 else:
                     raise Exception('cache key error: %s not found'%(ks[0]))
@@ -315,13 +315,13 @@ class CI_Cache(object):
 
 @CI_Cache.Cache('abc',key='#p[0].index,#p[1],#p[2]',md5=False)
 def abc(a,b,c):
-    print (a,b,c)
+    print((a,b,c))
 
 
 
 
 if __name__=='__main__':
     s=time.time()
-    for i in xrange(1,10000):
+    for i in range(1,10000):
         abc({'index':'adsdf'},2,3)
-    print(time.time()-s)
+    print((time.time()-s))

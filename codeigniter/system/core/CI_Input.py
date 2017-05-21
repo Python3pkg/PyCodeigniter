@@ -6,13 +6,13 @@ __author__ = 'xiaozhang'
 import sys
 import cgi
 try:
-    from StringIO import StringIO
+    from io import StringIO
 except ImportError:
     from io import StringIO
 PY2 = sys.version_info[0] == 2
 if PY2:
-    from urlparse import parse_qs
-    from urllib import quote,unquote
+    from urllib.parse import parse_qs
+    from urllib.parse import quote, unquote
 else:
     import urllib.parse
 
@@ -62,7 +62,7 @@ class CI_Input(object):
 
         env['__FORM__DATA__']={}
         data={}
-        if 'REQUEST_METHOD' in env.keys() and env['REQUEST_METHOD']=='POST':
+        if 'REQUEST_METHOD' in list(env.keys()) and env['REQUEST_METHOD']=='POST':
             try:
                 request_body_size = int(env.get('CONTENT_LENGTH', 0))
                 # request_body = env['wsgi.input'].read(request_body_size)
@@ -95,7 +95,7 @@ class CI_Input(object):
             except Exception as e:
                 self.app.logger.warn(e)
 
-        data=dict( data.items()+env['__FORM__DATA__'].items())
+        data=dict( list(data.items())+list(env['__FORM__DATA__'].items()))
         #data={}
         #for k,v in data:
         #    data[k]=v
@@ -107,12 +107,12 @@ class CI_Input(object):
 
 
         try:
-            for k in data.keys():
+            for k in list(data.keys()):
                 if k.find('[]')!=-1:
                     if isinstance(data[k],list):
                         data[k]= eval(data[k][0])
                 elif isinstance(data[k],list):
-                    data[k]=unicode( data[k][0],'utf-8').encode("utf-8")
+                    data[k]=str( data[k][0],'utf-8').encode("utf-8")
         except UnicodeDecodeError as e:
             self.app.logger.warn(str(e)+str(data))
             return data

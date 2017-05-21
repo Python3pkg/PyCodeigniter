@@ -4,7 +4,7 @@ import os
 import imp
 import sys
 sys.path.insert(0,os.path.dirname(__file__))
-from CI_Application import CI as app
+from .CI_Application import CI as app
 
 class CI_Hook(object):
 
@@ -35,12 +35,12 @@ class CI_Hook(object):
 
 
     def load_hook(self):
-        if app.config==None or 'hooks' not in app.config.keys():
+        if app.config==None or 'hooks' not in list(app.config.keys()):
             return
         hooks = app.config['hooks']
         hook_keys=['pre_system','pre_controller','post_controller_constructor','post_controller','display_override']
 
-        for key in hooks.keys():
+        for key in list(hooks.keys()):
             if not key in hook_keys:
                 continue
             hook_val = hooks[key]

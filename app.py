@@ -2,9 +2,9 @@
 # -*- coding:utf8 -*-
 __author__ = 'xiaozhang'
 
-from codeigniter import CI_Application
+from .codeigniter import CI_Application
 
-from codeigniter import ci
+from .codeigniter import ci
 
 def main():
     app=CI_Application(r'./')

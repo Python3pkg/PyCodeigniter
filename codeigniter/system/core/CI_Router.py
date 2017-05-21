@@ -11,11 +11,12 @@ import datetime
 import inspect
 
 import sys
+import collections
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 try:
-    from StringIO import StringIO
+    from io import StringIO
 except ImportError:
     from io import StringIO
 import cgi
@@ -24,9 +25,9 @@ try:
     import web,cgi,os
 except Exception as e:
     pass
-from CI_Application import CI
+from .CI_Application import CI
 
-from CI_Request import CI_Request
+from .CI_Request import CI_Request
 
 class CI_Router(object):
     def __init__(self,**kwargs):
@@ -127,20 +128,20 @@ class CI_Router(object):
                     if self.app.local.response.body == "":
                         self.app.set500("pre_controller hook result false")
                     return
-                if 'session' in self.config.keys():
+                if 'session' in list(self.config.keys()):
                     self.app.session.pre_parse_uuid()
-                if '__ctrl_name__' in data.keys():
+                if '__ctrl_name__' in list(data.keys()):
                     controller_name=data['__ctrl_name__']
                     del data['__ctrl_name__']
-                if '__func_name__' in data.keys():
+                if '__func_name__' in list(data.keys()):
                     func=data['__func_name__']
                     del data['__func_name__']
                 if self.app.static:
                     if self.app.static.accept(env):
                         return self.app.static.route(env)
                 for i in range(1):
-                    if 'route' in self.config.keys():
-                        for route,ctrl in self.config['route'].iteritems():
+                    if 'route' in list(self.config.keys()):
+                        for route,ctrl in self.config['route'].items():
                             if re.match(route,env['PATH_INFO']) or route.strip() == env['PATH_INFO'].strip():
                                 ctrl,func  = ctrl.split(".")
                                 ctrl_instance=self.app.loader.ctrl(ctrl)
@@ -182,7 +183,7 @@ class CI_Router(object):
                 self.app.set500("Server Error,Please see log file")
                 return
         finally:
-            if 'session' in self.config.keys():
+            if 'session' in list(self.config.keys()):
                 self.app.session.release()
             
 
@@ -210,7 +211,7 @@ class CI_Router(object):
         else:
             a = cgi.FieldStorage(environ=env, keep_blank_values=1)
         app.local.input={}
-        for key in a.keys():
+        for key in list(a.keys()):
             app.local.input[ key ] = a[key].value
         return app.local.input
 
@@ -218,9 +219,9 @@ class CI_Router(object):
         stime=time.time()
         path=env['PATH_INFO'].split('/')
         if PY2:
-            path=filter(lambda p:p!='',path)
+            path=[p for p in path if p!='']
         if PY3:
-            path=list(filter(lambda p:p!='',path))
+            path=list([p for p in path if p!=''])
         controller_name=''
 
         req=CI_Request(env)
@@ -238,7 +239,7 @@ class CI_Router(object):
                     if self.app.local.response.body == "":
                         self.app.set500("pre_controller hook result false")
                     return
-                if 'session' in self.config.keys():
+                if 'session' in list(self.config.keys()):
                     self.app.session.pre_parse_uuid()
                 # if '__ctrl_name__' in data.keys():
                 #     controller_name=data['__ctrl_name__']
@@ -251,8 +252,8 @@ class CI_Router(object):
                         self.app.local.response.status,self.app.local.response.body= self.app.static.route(env)
                         return
                 for i in range(1):
-                    if 'route' in self.config.keys():
-                        for route,ctrl in self.config['route'].iteritems():
+                    if 'route' in list(self.config.keys()):
+                        for route,ctrl in self.config['route'].items():
                             if re.match(route,env['PATH_INFO']) or route.strip() == env['PATH_INFO'].strip():
                                 ctrl,func  = ctrl.split(".")
                                 ctrl_instance=self.app.loader.ctrl(ctrl)
@@ -278,7 +279,7 @@ class CI_Router(object):
                         self.app.set500("post_controller_constructor hook result false")
                     return
                 funcobj = getattr(ctrl_instance,func)
-                if not callable(funcobj):
+                if not isinstance(funcobj, collections.Callable):
                     self.app.set404()
                     return
                 ret= getattr(ctrl_instance,func)(req,self.app.local.response)
@@ -301,7 +302,7 @@ class CI_Router(object):
                 self.app.set500("Server Error,Please see log file")
                 return
         finally:
-            if 'session' in self.config.keys():
+            if 'session' in list(self.config.keys()):
                 self.app.session.release()
 
 

@@ -45,7 +45,7 @@ class TestServer(Base):
         port= ci.config.get('server')['port']
 
         # print ci.request('http://127.0.0.1:8006/index/index')
-        print(ci.request('http://127.0.0.1:%s/index/index'%(port)))
+        print((ci.request('http://127.0.0.1:%s/index/index'%(port))))
 
 
 
@@ -85,7 +85,7 @@ class TestDB(Base):
             tx.update('test',{'title':'title','content':'change'},{'id':1})
             rows=tx.query('select * from test')
             assert rows[0]['content']=='change'
-            print tx.ar().select('*')._from('test').limit(1,0).get()
+            print(tx.ar().select('*')._from('test').limit(1,0).get())
             tx.delete('test',{'id':'1'})
             rows=tx.query('select * from test')
             assert len(rows)==0

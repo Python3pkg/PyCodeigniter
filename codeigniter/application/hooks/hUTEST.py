@@ -3,7 +3,7 @@
 
 
 def thook():
-    print "yrdy"
+    print("yrdy")
     return 1
 
 
